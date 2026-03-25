@@ -27,6 +27,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      type="button"
       className={`rounded transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     >

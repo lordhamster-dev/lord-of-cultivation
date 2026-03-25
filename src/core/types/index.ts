@@ -1,74 +1,66 @@
 import Decimal from 'break_eternity.js';
+export const SAVE_VERSION = 2;
+export interface CultivationStage { id: string; name: string; multiplier: number; breakCost: number; }
+export interface UpgradeDef { id: string; name: string; description: string; baseCost: number; costMultiplier: number; effect: (level: number) => number; maxLevel?: number; }
+export interface ResourceState { spiritStones: string; exp: string; spiritStonesPerSec: number; expPerSec: number; }
+export interface CultivationState { stageIndex: number; progress: number; totalAscensions: number; }
 
-// ─── Save Version ───────────────────────────────────────────────────────────
-export const SAVE_VERSION = 1;
+export interface ItemStack {
+  itemId: string;
+  quantity: number;
+}
 
-// ─── Cultivation Stage ───────────────────────────────────────────────────────
-export interface CultivationStage {
+export interface Inventory {
+  items: Record<string, number>;
+}
+
+export type SkillId = 'farming' | 'fishing' | 'alchemy';
+
+export interface SkillState {
+  level: number;
+  exp: number;
+  maxExp: number;
+}
+
+export interface HerbPlot {
   id: string;
-  name: string;
-  multiplier: number;
-  breakCost: number;
+  herbId: string | null;
+  plantedAt: number | null;
+  growthDurationMs: number;
+  isReady: boolean;
+  isUnlocked: boolean;
 }
 
-// ─── Upgrade Definition ──────────────────────────────────────────────────────
-export interface UpgradeDef {
-  id: string;
-  name: string;
-  description: string;
-  baseCost: number;
-  costMultiplier: number;
-  effect: (level: number) => number;
-  maxLevel?: number;
+export interface FishingState {
+  isActive: boolean;
+  currentAreaId: string | null;
+  progressMs: number;
+  totalFishCaught: number;
 }
 
-// ─── Resource State ──────────────────────────────────────────────────────────
-export interface ResourceState {
-  spiritStones: string;       // Decimal serialized
-  exp: string;                // Decimal serialized
-  spiritStonesPerSec: number;
-  expPerSec: number;
+export interface AlchemyState {
+  isActive: boolean;
+  currentRecipeId: string | null;
+  progressMs: number;
+  totalPillsCrafted: number;
 }
 
-// ─── Cultivation State ───────────────────────────────────────────────────────
-export interface CultivationState {
-  stageIndex: number;         // index into STAGES array
-  progress: number;           // 0–100
-  totalAscensions: number;
-}
-
-// ─── Game State ──────────────────────────────────────────────────────────────
 export interface GameState {
   resources: ResourceState;
   cultivation: CultivationState;
-  upgrades: Record<string, number>;  // upgradeId -> level
+  upgrades: Record<string, number>;
   lastSaveTime: number;
   lastTickTime: number;
   version: number;
+  inventory: Inventory;
+  skills: Record<SkillId, SkillState>;
+  herbPlots: HerbPlot[];
+  fishing: FishingState;
+  alchemy: AlchemyState;
+  gatheringPillEndTime: number;
 }
 
-// ─── Settings ────────────────────────────────────────────────────────────────
-export interface SettingsState {
-  theme: 'dark' | 'light';
-  offlineCapHours: number;
-  autoSaveInterval: number;   // milliseconds
-  showNotifications: boolean;
-}
-
-// ─── Event Map ───────────────────────────────────────────────────────────────
-export interface GameEventMap {
-  'tick': { deltaMs: number };
-  'breakthrough': { newStageIndex: number; stageName: string };
-  'upgrade:purchased': { id: string; level: number };
-  'save:completed': { timestamp: number };
-  'offline:applied': { elapsedMs: number; spiritStones: string; exp: string };
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-export function newDecimal(value: number | string): Decimal {
-  return new Decimal(value);
-}
-
-export function decimalToString(d: Decimal): string {
-  return d.toString();
-}
+export interface SettingsState { theme: 'dark' | 'light'; offlineCapHours: number; autoSaveInterval: number; showNotifications: boolean; }
+export interface GameEventMap { 'tick': { deltaMs: number }; 'breakthrough': { newStageIndex: number; stageName: string }; 'upgrade:purchased': { id: string; level: number }; 'save:completed': { timestamp: number }; 'offline:applied': { elapsedMs: number; spiritStones: string; exp: string }; }
+export function newDecimal(value: number | string): Decimal { return new Decimal(value); }
+export function decimalToString(d: Decimal): string { return d.toString(); }
