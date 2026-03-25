@@ -1,5 +1,7 @@
 import type { GameState } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
+import { createInitialQuestState } from '../core/systems/QuestSystem';
+import { createInitialAchievementState } from '../core/systems/AchievementSystem';
 
 /** Migrate a raw parsed save object to the current version. */
 export function migrate(raw: Partial<GameState>): GameState {
@@ -38,7 +40,36 @@ export function migrate(raw: Partial<GameState>): GameState {
     };
   }
 
+  // Version 2 → 3
+  if (data.version < 3) {
+    data = {
+      ...data,
+      // Add spirit resource fields
+      resources: {
+        ...data.resources,
+        spirit: data.resources?.spirit ?? 100,
+        spiritMax: data.resources?.spiritMax ?? 100,
+        spiritPerSec: data.resources?.spiritPerSec ?? 5,
+      },
+      // Add sub-stage fields
+      cultivation: {
+        ...data.cultivation,
+        subStageIndex: data.cultivation?.subStageIndex ?? 0,
+        activeTechniqueId: data.cultivation?.activeTechniqueId ?? null,
+      },
+      achievements: data.achievements ?? createInitialAchievementState(),
+      dailyQuests: data.dailyQuests ?? createInitialQuestState(),
+      stats: data.stats ?? {
+        totalHerbsHarvested: 0,
+        totalQuestsCompleted: 0,
+        totalPillsCraftedByType: {},
+      },
+      version: 3,
+    };
+  }
+
   return data as GameState;
 }
 
 export { SAVE_VERSION };
+

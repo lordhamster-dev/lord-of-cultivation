@@ -750,11 +750,12 @@ const ACHIEVEMENTS: AchievementDef[] = [
 - [x] 实现炼药系统（数据 + 系统 + 面板）
 - [x] 存档系统升级至v2（迁移脚本）
 
-### Phase 3（内容丰富化）
-- [ ] 成就系统
-- [ ] 功法系统
-- [ ] 日常任务系统
-- [ ] 境界子境界细化
+### Phase 3（内容丰富化）✅
+- [x] 成就系统（`core/data/achievements.ts` + `AchievementSystem.ts` + `AchievementPanel.tsx`）
+- [x] 功法系统（`core/data/techniques.ts` + 集成至 `CultivationPanel.tsx`，新增灵力资源）
+- [x] 日常任务系统（`core/data/quests.ts` + `QuestSystem.ts` + `QuestPanel.tsx`）
+- [x] 境界子境界细化（每大境界9层子境界，`stages.ts` + `CultivationSystem.ts` 更新）
+- [x] 存档系统升级至v3（迁移脚本支持v1→v2→v3）
 
 ### Phase 4（战斗与副本）
 - [ ] 战斗系统（自动战斗）
