@@ -1,11 +1,17 @@
 import Decimal from 'break_eternity.js';
-import { STAGES, MAX_STAGE_INDEX } from '../data/stages';
+import { STAGES, MAX_STAGE_INDEX, SUB_STAGES_PER_STAGE } from '../data/stages';
 import type { CultivationState, ResourceState } from '../types';
 
 export interface BreakthroughResult {
   success: boolean;
   reason?: string;
   newStageIndex?: number;
+}
+
+export interface SubStageAdvanceResult {
+  advanced: boolean;
+  newSubStageIndex: number;
+  newProgress: number;
 }
 
 /**
@@ -21,16 +27,49 @@ export function getBreakthroughCost(
   return Math.floor(stage.breakCost * alchemyRatio);
 }
 
+export const MAX_CULTIVATION_PROGRESS = 100;
+
 /**
- * Attempt a breakthrough. Returns success/failure and the new state.
+ * Check if the player is at the final sub-stage (sub-stage index 8) of current major stage.
+ * Only then is a major breakthrough possible.
+ */
+export function isAtFinalSubStage(cultivation: CultivationState): boolean {
+  return cultivation.subStageIndex >= SUB_STAGES_PER_STAGE - 1;
+}
+
+/**
+ * Try to advance to the next sub-stage if progress is full.
+ * Returns whether advancement happened and the new state.
+ */
+export function tryAdvanceSubStage(cultivation: CultivationState): SubStageAdvanceResult {
+  if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
+    return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: cultivation.progress };
+  }
+  if (cultivation.subStageIndex >= SUB_STAGES_PER_STAGE - 1) {
+    // At final sub-stage, keep progress at 100 (waiting for breakthrough)
+    return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: MAX_CULTIVATION_PROGRESS };
+  }
+
+  return {
+    advanced: true,
+    newSubStageIndex: cultivation.subStageIndex + 1,
+    newProgress: 0,
+  };
+}
+
+/**
+ * Attempt a breakthrough to the next major stage.
  */
 export function attemptBreakthrough(
   cultivation: CultivationState,
   resources: ResourceState,
   alchemyRatio: number,
 ): BreakthroughResult {
-  if (cultivation.progress < 100) {
+  if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
     return { success: false, reason: '修炼进度不足100%' };
+  }
+  if (!isAtFinalSubStage(cultivation)) {
+    return { success: false, reason: '尚未修炼至后期三层' };
   }
   if (cultivation.stageIndex >= MAX_STAGE_INDEX) {
     return { success: false, reason: '已达到最高境界' };
@@ -57,3 +96,4 @@ export function computeProgressGain(expPerSec: number, deltaMs: number): number 
   const seconds = deltaMs / 1000;
   return expPerSec * seconds * 0.1; // 0.1 progress per exp/sec per second
 }
+

@@ -3,13 +3,16 @@ import { immer } from 'zustand/middleware/immer';
 import Decimal from 'break_eternity.js';
 import { STAGES, MAX_STAGE_INDEX } from '../core/data/stages';
 import { UPGRADES } from '../core/data/upgrades';
+import { TECHNIQUES as _TECHNIQUES, getTechnique } from '../core/data/techniques';
 import { computeResourceGain, applyResourceGain } from '../core/systems/ResourceSystem';
 import { computeProductionRates, getUpgradeCost } from '../core/systems/ProductionSystem';
-import { attemptBreakthrough, computeProgressGain, getBreakthroughCost } from '../core/systems/CultivationSystem';
+import { attemptBreakthrough, computeProgressGain, getBreakthroughCost, tryAdvanceSubStage, isAtFinalSubStage } from '../core/systems/CultivationSystem';
 import { tickHerbGrowth, plantHerb as plantHerbSystem, harvestHerb as harvestHerbSystem } from '../core/systems/HerbSystem';
 import { tickFishing } from '../core/systems/FishingSystem';
 import { tickAlchemy, canCraft } from '../core/systems/AlchemySystem';
 import { addSkillExp, createInitialSkillState } from '../core/systems/SkillSystem';
+import { checkAchievements, createInitialAchievementState } from '../core/systems/AchievementSystem';
+import { createInitialQuestState, refreshDailyQuestsIfNeeded, updateQuestProgress, claimQuestReward } from '../core/systems/QuestSystem';
 import { PLOT_UNLOCK_COSTS } from '../core/data/herbs';
 import { FISHING_AREAS } from '../core/data/fish';
 import { getRecipe } from '../core/data/recipes';
@@ -21,8 +24,8 @@ import type { HerbPlot } from '../core/types';
 export const GATHERING_PILL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
 const DEFAULT_STATE: GameState = {
-  resources: { spiritStones: '50', exp: '0', spiritStonesPerSec: 0, expPerSec: 0 },
-  cultivation: { stageIndex: 0, progress: 0, totalAscensions: 0 },
+  resources: { spiritStones: '50', exp: '0', spiritStonesPerSec: 0, expPerSec: 0, spirit: 100, spiritMax: 100, spiritPerSec: 5 },
+  cultivation: { stageIndex: 0, subStageIndex: 0, progress: 0, totalAscensions: 0, activeTechniqueId: null },
   upgrades: {},
   lastSaveTime: Date.now(),
   lastTickTime: Date.now(),
@@ -44,6 +47,9 @@ const DEFAULT_STATE: GameState = {
   fishing: { isActive: false, currentAreaId: null, progressMs: 0, totalFishCaught: 0 },
   alchemy: { isActive: false, currentRecipeId: null, progressMs: 0, totalPillsCrafted: 0 },
   gatheringPillEndTime: 0,
+  achievements: createInitialAchievementState(),
+  dailyQuests: createInitialQuestState(),
+  stats: { totalHerbsHarvested: 0, totalQuestsCompleted: 0 },
 };
 
 interface GameActions {
@@ -62,6 +68,8 @@ interface GameActions {
   stopAlchemy: () => void;
   unlockHerbPlot: (plotIndex: number) => boolean;
   useItem: (itemId: string) => boolean;
+  activateTechnique: (techniqueId: string | null) => void;
+  claimQuest: (questId: string) => boolean;
 }
 
 type GameStore = GameState & GameActions;
@@ -74,16 +82,39 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const now = Date.now();
         const isPillActive = now < state.gatheringPillEndTime;
-        const rates = computeProductionRates(state.cultivation.stageIndex, state.upgrades);
+        const rates = computeProductionRates(state.cultivation.stageIndex, state.upgrades, state.cultivation.activeTechniqueId);
         const effectiveStonesPerSec = isPillActive ? rates.spiritStonesPerSec * 1.5 : rates.spiritStonesPerSec;
         state.resources.spiritStonesPerSec = effectiveStonesPerSec;
         state.resources.expPerSec = rates.expPerSec;
+        state.resources.spiritMax = rates.spiritMax;
+
+        // Spirit tick
+        state.resources.spiritPerSec = rates.spiritPerSec;
+        const newSpirit = Math.min(
+          rates.spiritMax,
+          Math.max(0, state.resources.spirit + rates.spiritPerSec * (deltaMs / 1000)),
+        );
+        // If spirit runs out, deactivate technique
+        if (newSpirit <= 0 && state.cultivation.activeTechniqueId !== null) {
+          state.cultivation.activeTechniqueId = null;
+        }
+        state.resources.spirit = newSpirit;
+
         const { spiritStonesDelta, expDelta } = computeResourceGain(state.resources, deltaMs);
         const { spiritStones, exp } = applyResourceGain(state.resources, spiritStonesDelta, expDelta);
         state.resources.spiritStones = spiritStones;
         state.resources.exp = exp;
         const progressGain = computeProgressGain(state.resources.expPerSec, deltaMs);
-        state.cultivation.progress = Math.min(100, state.cultivation.progress + progressGain);
+        const newProgress = Math.min(100, state.cultivation.progress + progressGain);
+        state.cultivation.progress = newProgress;
+
+        // Sub-stage auto-advance
+        const advResult = tryAdvanceSubStage(state.cultivation);
+        if (advResult.advanced) {
+          state.cultivation.subStageIndex = advResult.newSubStageIndex;
+          state.cultivation.progress = advResult.newProgress;
+        }
+
         state.lastTickTime = now;
 
         // Herb growth
@@ -91,6 +122,7 @@ export const useGameStore = create<GameStore>()(
         state.herbPlots = updatedPlots;
 
         // Fishing tick
+        const prevFishCount = state.fishing.totalFishCaught;
         const fishingLevel = state.skills.fishing.level;
         const fishingResult = tickFishing(
           state.fishing,
@@ -105,6 +137,7 @@ export const useGameStore = create<GameStore>()(
         state.inventory = fishingResult.inventory;
 
         // Alchemy tick
+        const prevPillCount = state.alchemy.totalPillsCrafted;
         const alchemyLevel = state.skills.alchemy.level;
         const alchemyResult = tickAlchemy(
           state.alchemy,
@@ -118,6 +151,30 @@ export const useGameStore = create<GameStore>()(
         }
         state.alchemy = alchemyResult.alchemy;
         state.inventory = alchemyResult.inventory;
+
+        // Track daily quest progress
+        const fishCaughtDelta = state.fishing.totalFishCaught - prevFishCount;
+        const pillsCraftedDelta = state.alchemy.totalPillsCrafted - prevPillCount;
+        // Use the raw production delta (always positive) rather than net change
+        const stonesEarnedDelta = parseFloat(spiritStonesDelta.toString());
+
+        if (fishCaughtDelta > 0 || pillsCraftedDelta > 0 || stonesEarnedDelta > 0) {
+          state.dailyQuests = refreshDailyQuestsIfNeeded(state.dailyQuests);
+          state.dailyQuests = updateQuestProgress(state.dailyQuests, {
+            fishCaught: fishCaughtDelta,
+            pillsCrafted: pillsCraftedDelta,
+            spiritStonesEarned: stonesEarnedDelta,
+          });
+        } else {
+          // Still check for day reset
+          state.dailyQuests = refreshDailyQuestsIfNeeded(state.dailyQuests);
+        }
+
+        // Achievement check
+        const achieveResult = checkAchievements(state.achievements, state as GameState);
+        if (achieveResult.newlyUnlocked.length > 0) {
+          state.achievements = achieveResult.updated;
+        }
       });
     },
 
@@ -133,6 +190,8 @@ export const useGameStore = create<GameStore>()(
       set((draft) => {
         draft.resources.spiritStones = stones.sub(cost).toString();
         draft.upgrades[id] = currentLevel + 1;
+        // Track daily upgrade quest
+        draft.dailyQuests = updateQuestProgress(draft.dailyQuests, { upgradesBought: 1 });
       });
       return true;
     },
@@ -148,6 +207,7 @@ export const useGameStore = create<GameStore>()(
       set((draft) => {
         draft.resources.spiritStones = new Decimal(draft.resources.spiritStones).sub(cost).toString();
         draft.cultivation.stageIndex = result.newStageIndex!;
+        draft.cultivation.subStageIndex = 0;
         draft.cultivation.progress = 0;
         if (result.newStageIndex === MAX_STAGE_INDEX) draft.cultivation.totalAscensions += 1;
       });
@@ -169,6 +229,9 @@ export const useGameStore = create<GameStore>()(
         fishing: state.fishing,
         alchemy: state.alchemy,
         gatheringPillEndTime: state.gatheringPillEndTime,
+        achievements: state.achievements,
+        dailyQuests: state.dailyQuests,
+        stats: state.stats,
       };
       SaveManager.save(snapshot);
       set((draft) => { draft.lastSaveTime = snapshot.lastSaveTime; });
@@ -225,6 +288,9 @@ export const useGameStore = create<GameStore>()(
         }
         draft.inventory.items = newItems;
         draft.skills.farming = addSkillExp(draft.skills.farming, result.exp);
+        draft.stats.totalHerbsHarvested += result.items.reduce((sum, i) => sum + i.quantity, 0);
+        // Track herb quest
+        draft.dailyQuests = updateQuestProgress(draft.dailyQuests, { herbsHarvested: 1 });
       });
       return true;
     },
@@ -297,6 +363,37 @@ export const useGameStore = create<GameStore>()(
       }
       return false;
     },
+
+    activateTechnique(techniqueId: string | null): void {
+      const state = get();
+      if (techniqueId !== null) {
+        const technique = getTechnique(techniqueId);
+        if (!technique) return;
+        if (state.cultivation.stageIndex < technique.requiredStage) return;
+        if (state.resources.spirit <= 0) return;
+      }
+      set((draft) => {
+        draft.cultivation.activeTechniqueId = techniqueId;
+      });
+    },
+
+    claimQuest(questId: string): boolean {
+      const state = get();
+      const questProgress = state.dailyQuests.quests.find(q => q.questId === questId);
+      if (!questProgress || !questProgress.completed || questProgress.claimed) return false;
+
+      const { spiritStonesBonus, updatedInventory } = claimQuestReward(questId, state.inventory);
+      set((draft) => {
+        const qp = draft.dailyQuests.quests.find(q => q.questId === questId);
+        if (qp) qp.claimed = true;
+        if (spiritStonesBonus > 0) {
+          draft.resources.spiritStones = new Decimal(draft.resources.spiritStones).add(spiritStonesBonus).toString();
+        }
+        draft.inventory = updatedInventory;
+        draft.stats.totalQuestsCompleted += 1;
+      });
+      return true;
+    },
   })),
 );
 
@@ -308,3 +405,4 @@ export const selectBreakthroughCost = (state: GameStore) => {
   const alchemyRatio = alchemyDef ? alchemyDef.effect(alchemyLevel) : 1;
   return getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio);
 };
+export const selectIsAtFinalSubStage = (state: GameStore) => isAtFinalSubStage(state.cultivation);
