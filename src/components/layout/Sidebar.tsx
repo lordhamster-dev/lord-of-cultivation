@@ -1,4 +1,4 @@
-type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save';
+type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy';
 
 interface SidebarProps {
   activePanel: Panel;
@@ -9,6 +9,10 @@ const TABS: { id: Panel; label: string; icon: string }[] = [
   { id: 'cultivation', label: '修炼', icon: '⚡' },
   { id: 'resources',   label: '资源', icon: '💎' },
   { id: 'upgrades',    label: '升级', icon: '🔮' },
+  { id: 'inventory',   label: '背包', icon: '🎒' },
+  { id: 'herbs',       label: '种植', icon: '🌿' },
+  { id: 'fishing',     label: '钓鱼', icon: '🎣' },
+  { id: 'alchemy',     label: '炼丹', icon: '⚗️' },
   { id: 'save',        label: '存档', icon: '💾' },
 ];
 

@@ -6,12 +6,16 @@ import { CultivationPanel } from './components/panels/CultivationPanel';
 import { ResourcePanel } from './components/panels/ResourcePanel';
 import { UpgradePanel } from './components/panels/UpgradePanel';
 import { SavePanel } from './components/panels/SavePanel';
+import { InventoryPanel } from './components/panels/InventoryPanel';
+import { HerbPanel } from './components/panels/HerbPanel';
+import { FishingPanel } from './components/panels/FishingPanel';
+import { AlchemyPanel } from './components/panels/AlchemyPanel';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useOfflineProgress } from './hooks/useOfflineProgress';
 import { Button } from './components/ui/Button';
 import { NumberDisplay } from './components/ui/NumberDisplay';
 
-type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save';
+type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy';
 
 function OfflineModal({
   show,
@@ -69,6 +73,10 @@ function App() {
       case 'resources':   return <ResourcePanel />;
       case 'upgrades':    return <UpgradePanel />;
       case 'save':        return <SavePanel />;
+      case 'inventory':   return <InventoryPanel />;
+      case 'herbs':       return <HerbPanel />;
+      case 'fishing':     return <FishingPanel />;
+      case 'alchemy':     return <AlchemyPanel />;
     }
   };
 

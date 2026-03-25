@@ -1,0 +1,30 @@
+import { ProgressBar } from './ProgressBar';
+import type { SkillState } from '../../core/types';
+import { getExpForLevel } from '../../core/systems/SkillSystem';
+
+interface SkillBarProps {
+  skillName: string;
+  skill: SkillState;
+  icon?: string;
+}
+
+export function SkillBar({ skillName, skill, icon }: SkillBarProps) {
+  const currentLevelExp = getExpForLevel(skill.level);
+  const nextLevelExp = skill.level < 99 ? getExpForLevel(skill.level + 1) : currentLevelExp;
+  const progress = nextLevelExp > currentLevelExp
+    ? ((skill.exp - currentLevelExp) / (nextLevelExp - currentLevelExp)) * 100
+    : 100;
+
+  return (
+    <div className="flex items-center gap-3">
+      {icon && <span className="text-xl">{icon}</span>}
+      <div className="flex-1">
+        <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <span className="font-medium text-slate-300">{skillName}</span>
+          <span>Lv.{skill.level} {skill.level < 99 ? `(${skill.exp - currentLevelExp}/${nextLevelExp - currentLevelExp})` : '(MAX)'}</span>
+        </div>
+        <ProgressBar value={Math.min(100, progress)} color="bg-green-500" />
+      </div>
+    </div>
+  );
+}
