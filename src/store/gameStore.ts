@@ -18,6 +18,8 @@ import type { GameState } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
 import type { HerbPlot } from '../core/types';
 
+export const GATHERING_PILL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
 const DEFAULT_STATE: GameState = {
   resources: { spiritStones: '50', exp: '0', spiritStonesPerSec: 0, expPerSec: 0 },
   cultivation: { stageIndex: 0, progress: 0, totalAscensions: 0 },
@@ -289,7 +291,7 @@ export const useGameStore = create<GameStore>()(
       if (itemId === 'gathering_pill') {
         set((draft) => {
           draft.inventory.items[itemId] = qty - 1;
-          draft.gatheringPillEndTime = Date.now() + 5 * 60 * 1000;
+          draft.gatheringPillEndTime = Date.now() + GATHERING_PILL_DURATION_MS;
         });
         return true;
       }

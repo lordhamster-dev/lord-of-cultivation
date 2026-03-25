@@ -11,7 +11,7 @@ export function getExpForLevel(level: number): number {
 
 export function getLevelFromExp(exp: number): number {
   let level = 1;
-  while (level < 99 && getExpForLevel(level + 1) <= exp) {
+  while (level < MAX_SKILL_LEVEL && getExpForLevel(level + 1) <= exp) {
     level++;
   }
   return level;
@@ -21,10 +21,12 @@ export function getExpForNextLevel(level: number): number {
   return getExpForLevel(level + 1);
 }
 
+export const MAX_SKILL_LEVEL = 99;
+
 export function addSkillExp(skill: SkillState, expGain: number): SkillState {
   const newExp = skill.exp + expGain;
-  const newLevel = Math.min(99, getLevelFromExp(newExp));
-  const maxExp = newLevel < 99 ? getExpForNextLevel(newLevel) : getExpForNextLevel(98);
+  const newLevel = Math.min(MAX_SKILL_LEVEL, getLevelFromExp(newExp));
+  const maxExp = newLevel < MAX_SKILL_LEVEL ? getExpForNextLevel(newLevel) : getExpForLevel(MAX_SKILL_LEVEL);
   return { level: newLevel, exp: newExp, maxExp };
 }
 
