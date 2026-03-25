@@ -27,6 +27,8 @@ export function getBreakthroughCost(
   return Math.floor(stage.breakCost * alchemyRatio);
 }
 
+export const MAX_CULTIVATION_PROGRESS = 100;
+
 /**
  * Check if the player is at the final sub-stage (sub-stage index 8) of current major stage.
  * Only then is a major breakthrough possible.
@@ -40,12 +42,12 @@ export function isAtFinalSubStage(cultivation: CultivationState): boolean {
  * Returns whether advancement happened and the new state.
  */
 export function tryAdvanceSubStage(cultivation: CultivationState): SubStageAdvanceResult {
-  if (cultivation.progress < 100) {
+  if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
     return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: cultivation.progress };
   }
   if (cultivation.subStageIndex >= SUB_STAGES_PER_STAGE - 1) {
     // At final sub-stage, keep progress at 100 (waiting for breakthrough)
-    return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: 100 };
+    return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: MAX_CULTIVATION_PROGRESS };
   }
 
   return {
@@ -63,7 +65,7 @@ export function attemptBreakthrough(
   resources: ResourceState,
   alchemyRatio: number,
 ): BreakthroughResult {
-  if (cultivation.progress < 100) {
+  if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
     return { success: false, reason: '修炼进度不足100%' };
   }
   if (!isAtFinalSubStage(cultivation)) {

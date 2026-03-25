@@ -157,7 +157,6 @@ export function CultivationPanel() {
                 {!isLocked && (
                   <div className="text-xs text-slate-500 mt-1">
                     消耗: {tech.spiritCostPerSec}/秒灵力
-                    {isLocked && ` | 需要: ${STAGES[tech.requiredStage]?.name ?? ''}`}
                   </div>
                 )}
                 {isLocked && (

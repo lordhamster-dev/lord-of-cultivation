@@ -49,7 +49,7 @@ const DEFAULT_STATE: GameState = {
   gatheringPillEndTime: 0,
   achievements: createInitialAchievementState(),
   dailyQuests: createInitialQuestState(),
-  stats: { totalHerbsHarvested: 0, totalQuestsCompleted: 0, totalPillsCraftedByType: {} },
+  stats: { totalHerbsHarvested: 0, totalQuestsCompleted: 0 },
 };
 
 interface GameActions {
@@ -100,7 +100,6 @@ export const useGameStore = create<GameStore>()(
         }
         state.resources.spirit = newSpirit;
 
-        const prevStonesStr = state.resources.spiritStones;
         const { spiritStonesDelta, expDelta } = computeResourceGain(state.resources, deltaMs);
         const { spiritStones, exp } = applyResourceGain(state.resources, spiritStonesDelta, expDelta);
         state.resources.spiritStones = spiritStones;
@@ -156,7 +155,8 @@ export const useGameStore = create<GameStore>()(
         // Track daily quest progress
         const fishCaughtDelta = state.fishing.totalFishCaught - prevFishCount;
         const pillsCraftedDelta = state.alchemy.totalPillsCrafted - prevPillCount;
-        const stonesEarnedDelta = Math.max(0, parseFloat(spiritStones) - parseFloat(prevStonesStr));
+        // Use the raw production delta (always positive) rather than net change
+        const stonesEarnedDelta = parseFloat(spiritStonesDelta.toString());
 
         if (fishCaughtDelta > 0 || pillsCraftedDelta > 0 || stonesEarnedDelta > 0) {
           state.dailyQuests = refreshDailyQuestsIfNeeded(state.dailyQuests);
@@ -171,7 +171,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Achievement check
-        const achieveResult = checkAchievements(state.achievements, state as unknown as import('../core/types').GameState);
+        const achieveResult = checkAchievements(state.achievements, state as GameState);
         if (achieveResult.newlyUnlocked.length > 0) {
           state.achievements = achieveResult.updated;
         }

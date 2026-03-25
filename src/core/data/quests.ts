@@ -147,18 +147,22 @@ export const QUEST_POOL: QuestDef[] = [
   },
 ];
 
-/** Select today's daily quests: one from each tier */
+/** Select today's daily quests: one from each tier using a better distribution */
 export function getDailyQuests(seed: number): QuestDef[] {
   const tier1 = QUEST_POOL.filter(q => q.difficultyTier === 1);
   const tier2 = QUEST_POOL.filter(q => q.difficultyTier === 2);
   const tier3 = QUEST_POOL.filter(q => q.difficultyTier === 3);
 
-  const pick = (pool: QuestDef[], s: number) => pool[s % pool.length];
+  // Use a simple LCG-style hash to improve distribution across days
+  const hash = (n: number) => ((n * 1664525 + 1013904223) >>> 0);
+  const s1 = hash(seed);
+  const s2 = hash(s1 + 1);
+  const s3 = hash(s2 + 1);
 
   return [
-    pick(tier1, seed),
-    pick(tier2, seed + 1),
-    pick(tier3, seed + 2),
+    tier1[s1 % tier1.length],
+    tier2[s2 % tier2.length],
+    tier3[s3 % tier3.length],
   ];
 }
 

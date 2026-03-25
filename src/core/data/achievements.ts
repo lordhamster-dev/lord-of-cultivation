@@ -211,7 +211,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: '炼制筑基丹',
     icon: '🏯',
     category: 'alchemy',
-    condition: (s) => (s.inventory.items['foundation_pill'] ?? 0) > 0 || (s.stats.totalPillsCraftedByType?.['foundation_pill'] ?? 0) > 0,
+    condition: (s) => (s.inventory.items['foundation_pill'] ?? 0) > 0,
   },
 
   // Hidden

@@ -62,7 +62,6 @@ export function migrate(raw: Partial<GameState>): GameState {
       stats: data.stats ?? {
         totalHerbsHarvested: 0,
         totalQuestsCompleted: 0,
-        totalPillsCraftedByType: {},
       },
       version: 3,
     };

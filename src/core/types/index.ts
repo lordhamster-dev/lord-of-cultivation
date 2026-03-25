@@ -82,7 +82,6 @@ export interface DailyQuestState {
 export interface GameStats {
   totalHerbsHarvested: number;
   totalQuestsCompleted: number;
-  totalPillsCraftedByType: Record<string, number>;
 }
 
 // ─── Extended GameState ───────────────────────────────────────────────────────
