@@ -17,7 +17,7 @@ import { SAVE_VERSION } from '../core/types';
 // ─── Default State ────────────────────────────────────────────────────────────
 const DEFAULT_STATE: GameState = {
   resources: {
-    spiritStones: '0',
+    spiritStones: '50',
     exp: '0',
     spiritStonesPerSec: 0,
     expPerSec: 0,

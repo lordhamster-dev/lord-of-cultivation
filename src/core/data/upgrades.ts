@@ -6,15 +6,15 @@ export const UPGRADES: UpgradeDef[] = [
     name: '聚灵阵',
     description: '每秒灵石产出 +1',
     baseCost: 10,
-    costMultiplier: 1.5,
+    costMultiplier: 1.4,
     effect: (level) => level,         // +1 spiritStones/sec per level
   },
   {
     id: 'meditation',
     name: '打坐冥想',
     description: '每秒经验 +1',
-    baseCost: 15,
-    costMultiplier: 1.5,
+    baseCost: 10,
+    costMultiplier: 1.4,
     effect: (level) => level,         // +1 exp/sec per level
   },
   {
