@@ -17,8 +17,9 @@ export function computeProductionRates(
   const gatheringLevel = upgrades['spirit_gathering'] ?? 0;
   const meditationLevel = upgrades['meditation'] ?? 0;
 
-  let spiritStonesPerSec = gatheringLevel;
-  let expPerSec = meditationLevel;
+  // Base passive income ensures the game loop starts even before any upgrades
+  let spiritStonesPerSec = 0.5 + gatheringLevel;
+  let expPerSec = 0.2 + meditationLevel;
 
   // Multiplicative upgrades
   const spiritVeinLevel = upgrades['spirit_vein'] ?? 0;
