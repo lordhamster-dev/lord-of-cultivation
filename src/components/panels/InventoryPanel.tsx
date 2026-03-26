@@ -60,14 +60,6 @@ export function InventoryPanel() {
     <div className="p-4 space-y-4">
       <h2 className="text-lg font-bold text-amber-400">🎒 背包</h2>
 
-      {/* Spirit stones display */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-sm">
-        <div className="flex justify-between items-center">
-          <span className="text-amber-300">💎 灵石</span>
-          <span className="text-amber-400 font-bold text-lg">{(inventory.items['spirit_stone'] ?? 0).toLocaleString()}</span>
-        </div>
-      </div>
-
       {isPillActive && (
         <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 text-sm text-purple-300">
           ⚡ 聚气丹效果激活中 — 打坐灵力恢复 +50% (剩余 {remainingSecs}s)
