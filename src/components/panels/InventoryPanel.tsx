@@ -4,8 +4,9 @@ import { ItemSlot } from '../ui/ItemSlot';
 import { Button } from '../ui/Button';
 import { ITEMS } from '../../core/data/items';
 import type { ItemDef } from '../../core/data/items';
+import { getEquipment, getEquipmentTotalStats } from '../../core/data/equipment';
 
-type CategoryFilter = 'all' | ItemDef['category'];
+type CategoryFilter = 'all' | ItemDef['category'] | 'equipment';
 
 const CATEGORY_TABS: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -15,12 +16,14 @@ const CATEGORY_TABS: { id: CategoryFilter; label: string }[] = [
   { id: 'fish', label: '鱼' },
   { id: 'pill', label: '丹药' },
   { id: 'material', label: '材料' },
+  { id: 'equipment', label: '装备' },
 ];
 
 export function InventoryPanel() {
   const inventory = useGameStore(s => s.inventory);
   const consumeItem = useGameStore(s => s.useItem);
   const sellItem = useGameStore(s => s.sellItem);
+  const equipFromInventory = useGameStore(s => s.equipFromInventory);
   const gatheringPillEndTime = useGameStore(s => s.gatheringPillEndTime);
   const [filter, setFilter] = useState<CategoryFilter>('all');
   const [selected, setSelected] = useState<string | null>(null);
@@ -30,31 +33,20 @@ export function InventoryPanel() {
   const remainingSecs = isPillActive ? Math.ceil((gatheringPillEndTime - Date.now()) / 1000) : 0;
 
   const entries = Object.entries(inventory.items).filter(([, qty]) => qty > 0);
+
+  // Separate equipment items (keys matching EquipmentDef ids) from regular items
   const filtered = entries.filter(([itemId]) => {
+    const isEquipment = !!getEquipment(itemId);
+    if (filter === 'equipment') return isEquipment;
+    if (isEquipment) return filter === 'all';
     if (filter === 'all') return true;
     const item = ITEMS.find(i => i.id === itemId);
     return item?.category === filter;
   });
 
   const selectedItem = selected ? ITEMS.find(i => i.id === selected) : null;
+  const selectedEquipDef = selected ? getEquipment(selected) : null;
   const selectedQty = selected ? (inventory.items[selected] ?? 0) : 0;
-
-  const handleSell = () => {
-    if (!selected || !selectedItem) return;
-    const qty = Math.min(sellQty, selectedQty);
-    if (qty > 0) {
-      sellItem(selected, qty);
-      if (qty >= selectedQty) setSelected(null);
-      setSellQty(1);
-    }
-  };
-
-  const handleSellAll = () => {
-    if (!selected || !selectedItem || selectedQty <= 0) return;
-    sellItem(selected, selectedQty);
-    setSelected(null);
-    setSellQty(1);
-  };
 
   return (
     <div className="p-4 space-y-4">
@@ -98,6 +90,7 @@ export function InventoryPanel() {
         </div>
       )}
 
+      {/* Regular item detail */}
       {selectedItem && (
         <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 space-y-2">
           <div className="font-semibold text-amber-300">{selectedItem.name}</div>
@@ -106,7 +99,6 @@ export function InventoryPanel() {
           {selectedItem.sellPrice != null && selectedItem.id !== 'spirit_stone' && (
             <div className="text-xs text-amber-400">售价: {selectedItem.sellPrice} 灵石/个</div>
           )}
-          {/* Use button for gathering pill */}
           {selectedItem.category === 'pill' && selectedItem.id === 'gathering_pill' && (
             <Button
               variant="primary"
@@ -117,7 +109,6 @@ export function InventoryPanel() {
               {isPillActive ? '效果激活中' : '使用'}
             </Button>
           )}
-          {/* Sell button (not for spirit stones or currency) */}
           {selectedItem.sellPrice != null && selectedItem.id !== 'spirit_stone' && selectedQty > 0 && (
             <div className="space-y-2 mt-2">
               <div className="flex items-center gap-2">
@@ -133,15 +124,50 @@ export function InventoryPanel() {
                 <span className="text-xs text-amber-300">= {(selectedItem.sellPrice * Math.min(sellQty, selectedQty)).toLocaleString()} 灵石</span>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={handleSell} className="flex-1">
+                <Button variant="secondary" onClick={() => { sellItem(selected!, Math.min(sellQty, selectedQty)); setSellQty(1); }} className="flex-1">
                   出售 {Math.min(sellQty, selectedQty)} 个
                 </Button>
-                <Button variant="danger" onClick={handleSellAll} className="flex-1">
+                <Button variant="danger" onClick={() => { sellItem(selected!, selectedQty); setSelected(null); setSellQty(1); }} className="flex-1">
                   全部出售
                 </Button>
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Equipment item detail */}
+      {selectedEquipDef && !selectedItem && (
+        <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{selectedEquipDef.icon}</span>
+            <div>
+              <div className="font-semibold text-amber-300">{selectedEquipDef.name}</div>
+              <div className="text-xs text-slate-400">{selectedEquipDef.description}</div>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500">数量: {selectedQty}</div>
+          <div className="flex flex-wrap gap-1">
+            {(() => {
+              const s = getEquipmentTotalStats(selectedEquipDef.id, 0);
+              return (
+                <>
+                  {s.attack && <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">⚔️+{s.attack}</span>}
+                  {s.defense && <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">🛡️+{s.defense}</span>}
+                  {s.hp && <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">❤️+{s.hp}</span>}
+                  {s.meditationPercent && <span className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">🧘+{(s.meditationPercent * 100).toFixed(0)}%</span>}
+                </>
+              );
+            })()}
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => { equipFromInventory(selectedEquipDef.id); setSelected(null); }}
+            className="w-full"
+            disabled={selectedQty < 1}
+          >
+            装备
+          </Button>
         </div>
       )}
     </div>
