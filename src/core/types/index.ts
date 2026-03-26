@@ -1,5 +1,5 @@
 import Decimal from 'break_eternity.js';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 // ─── Sub-stage definition ────────────────────────────────────────────────────
 export interface SubStage {
@@ -7,12 +7,18 @@ export interface SubStage {
   expRequired: number; // total cultivation progress (0-100) to fill this sub-stage
 }
 
+export type RealmTier = 'lower' | 'middle' | 'upper';
+
 export interface CultivationStage {
   id: string;
   name: string;
+  realm: RealmTier;
+  realmName: string;        // 下境界 / 中境界 / 上境界
   multiplier: number;
   breakCost: number;
-  subStages: SubStage[]; // 9 sub-stages per major stage
+  breakPillId?: string;     // pill item ID that reduces breakthrough cost
+  breakPillDiscount: number; // 0-1, e.g. 0.5 = 50% cost reduction when pill is used
+  subStages: SubStage[];
 }
 export interface UpgradeDef { id: string; name: string; description: string; baseCost: number; costMultiplier: number; effect: (level: number) => number; maxLevel?: number; }
 export interface ResourceState { spiritStones: string; exp: string; spiritStonesPerSec: number; expPerSec: number; spirit: number; spiritMax: number; spiritPerSec: number; }

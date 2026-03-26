@@ -1,11 +1,12 @@
 import Decimal from 'break_eternity.js';
-import { STAGES, MAX_STAGE_INDEX, SUB_STAGES_PER_STAGE } from '../data/stages';
-import type { CultivationState, ResourceState } from '../types';
+import { STAGES, MAX_STAGE_INDEX, getSubStageCount } from '../data/stages';
+import type { CultivationState, ResourceState, Inventory } from '../types';
 
 export interface BreakthroughResult {
   success: boolean;
   reason?: string;
   newStageIndex?: number;
+  pillConsumed?: boolean; // whether a breakthrough pill was consumed
 }
 
 export interface SubStageAdvanceResult {
@@ -16,25 +17,40 @@ export interface SubStageAdvanceResult {
 
 /**
  * Get the spirit stones cost for breakthrough at the current stage,
- * accounting for the alchemy upgrade reduction ratio.
+ * accounting for the alchemy upgrade reduction ratio and optional pill discount.
  */
 export function getBreakthroughCost(
   stageIndex: number,
   alchemyRatio: number,
+  hasPill = false,
 ): number {
-  const stage = STAGES[stageIndex];
-  if (!stage) return Infinity;
-  return Math.floor(stage.breakCost * alchemyRatio);
+  const stageData = STAGES[stageIndex];
+  if (!stageData) return Infinity;
+  let cost = stageData.breakCost * alchemyRatio;
+  if (hasPill && stageData.breakPillId && stageData.breakPillDiscount > 0) {
+    cost *= (1 - stageData.breakPillDiscount);
+  }
+  return Math.floor(cost);
 }
 
 export const MAX_CULTIVATION_PROGRESS = 100;
 
 /**
- * Check if the player is at the final sub-stage (sub-stage index 8) of current major stage.
+ * Check if the player is at the final sub-stage of the current major stage.
  * Only then is a major breakthrough possible.
  */
 export function isAtFinalSubStage(cultivation: CultivationState): boolean {
-  return cultivation.subStageIndex >= SUB_STAGES_PER_STAGE - 1;
+  const subStageCount = getSubStageCount(cultivation.stageIndex);
+  return cultivation.subStageIndex >= subStageCount - 1;
+}
+
+/**
+ * Check if the player has the corresponding breakthrough pill for the next stage.
+ */
+export function hasBreakthroughPill(stageIndex: number, inventory: Inventory): boolean {
+  const nextStage = STAGES[stageIndex + 1];
+  if (!nextStage?.breakPillId) return false;
+  return (inventory.items[nextStage.breakPillId] ?? 0) >= 1;
 }
 
 /**
@@ -45,7 +61,8 @@ export function tryAdvanceSubStage(cultivation: CultivationState): SubStageAdvan
   if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
     return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: cultivation.progress };
   }
-  if (cultivation.subStageIndex >= SUB_STAGES_PER_STAGE - 1) {
+  const subStageCount = getSubStageCount(cultivation.stageIndex);
+  if (cultivation.subStageIndex >= subStageCount - 1) {
     // At final sub-stage, keep progress at 100 (waiting for breakthrough)
     return { advanced: false, newSubStageIndex: cultivation.subStageIndex, newProgress: MAX_CULTIVATION_PROGRESS };
   }
@@ -59,23 +76,28 @@ export function tryAdvanceSubStage(cultivation: CultivationState): SubStageAdvan
 
 /**
  * Attempt a breakthrough to the next major stage.
+ * If the player has a corresponding breakthrough pill, it will be used to reduce cost.
  */
 export function attemptBreakthrough(
   cultivation: CultivationState,
   resources: ResourceState,
   alchemyRatio: number,
+  inventory: Inventory,
 ): BreakthroughResult {
   if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
     return { success: false, reason: '修炼进度不足100%' };
   }
   if (!isAtFinalSubStage(cultivation)) {
-    return { success: false, reason: '尚未修炼至后期三层' };
+    const subStageCount = getSubStageCount(cultivation.stageIndex);
+    const finalSubName = STAGES[cultivation.stageIndex]?.subStages[subStageCount - 1]?.name ?? '最终';
+    return { success: false, reason: `尚未修炼至${finalSubName}` };
   }
   if (cultivation.stageIndex >= MAX_STAGE_INDEX) {
     return { success: false, reason: '已达到最高境界' };
   }
 
-  const cost = getBreakthroughCost(cultivation.stageIndex, alchemyRatio);
+  const hasPill = hasBreakthroughPill(cultivation.stageIndex, inventory);
+  const cost = getBreakthroughCost(cultivation.stageIndex, alchemyRatio, hasPill);
   const stones = new Decimal(resources.spiritStones);
   if (stones.lt(cost)) {
     return { success: false, reason: `灵石不足，需要 ${cost} 灵石` };
@@ -84,6 +106,7 @@ export function attemptBreakthrough(
   return {
     success: true,
     newStageIndex: cultivation.stageIndex + 1,
+    pillConsumed: hasPill,
   };
 }
 

@@ -76,6 +76,60 @@ export const TECHNIQUES: TechniqueDef[] = [
     ],
     requiredStage: 3, // 元婴
   },
+  {
+    id: 'god_transform_art',
+    name: '化神天诀',
+    description: '化神期功法，感知天地元气，灵石产出+150%，修炼经验+100%',
+    icon: '⚡',
+    spiritCostPerSec: 40,
+    effects: [
+      { type: 'spiritStones', multiplier: 2.5 },
+      { type: 'exp', multiplier: 2.0 },
+    ],
+    requiredStage: 4, // 化神
+  },
+  {
+    id: 'void_refining_art',
+    name: '炼虚归元诀',
+    description: '炼虚期功法，元神化虚，一切产出+150%',
+    icon: '🌌',
+    spiritCostPerSec: 80,
+    effects: [
+      { type: 'spiritStones', multiplier: 2.5 },
+      { type: 'exp', multiplier: 2.5 },
+      { type: 'fishing', multiplier: 2.5 },
+      { type: 'farming', multiplier: 2.5 },
+      { type: 'alchemy', multiplier: 2.5 },
+    ],
+    requiredStage: 5, // 炼虚
+  },
+  {
+    id: 'mahayana_art',
+    name: '大乘无极诀',
+    description: '大乘期功法，三阳灌体，灵石产出+300%，修炼经验+200%',
+    icon: '☀️',
+    spiritCostPerSec: 200,
+    effects: [
+      { type: 'spiritStones', multiplier: 4.0 },
+      { type: 'exp', multiplier: 3.0 },
+    ],
+    requiredStage: 7, // 大乘
+  },
+  {
+    id: 'true_immortal_art',
+    name: '真仙法则诀',
+    description: '真仙境功法，领悟法则之力，一切产出+300%',
+    icon: '🌟',
+    spiritCostPerSec: 500,
+    effects: [
+      { type: 'spiritStones', multiplier: 4.0 },
+      { type: 'exp', multiplier: 4.0 },
+      { type: 'fishing', multiplier: 4.0 },
+      { type: 'farming', multiplier: 4.0 },
+      { type: 'alchemy', multiplier: 4.0 },
+    ],
+    requiredStage: 8, // 真仙
+  },
 ];
 
 export function getTechnique(id: string): TechniqueDef | undefined {

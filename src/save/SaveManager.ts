@@ -1,8 +1,9 @@
 import type { GameState } from '../core/types';
 import { migrate } from './Migration';
 
-const SAVE_KEY = 'lord_of_cultivation_save_v4';
-const LEGACY_KEY = 'lord_of_cultivation_save_v3';
+const SAVE_KEY = 'lord_of_cultivation_save_v5';
+const LEGACY_KEY = 'lord_of_cultivation_save_v4';
+const LEGACY_V3_KEY = 'lord_of_cultivation_save_v3';
 const LEGACY_V2_KEY = 'lord_of_cultivation_save_v2';
 const LEGACY_V1_KEY = 'lord_of_cultivation_save_v1';
 
@@ -19,7 +20,7 @@ export class SaveManager {
   /** Load and migrate game state from localStorage. */
   static load(): GameState | null {
     try {
-      const raw = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(LEGACY_KEY) ?? localStorage.getItem(LEGACY_V2_KEY) ?? localStorage.getItem(LEGACY_V1_KEY);
+      const raw = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(LEGACY_KEY) ?? localStorage.getItem(LEGACY_V3_KEY) ?? localStorage.getItem(LEGACY_V2_KEY) ?? localStorage.getItem(LEGACY_V1_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<GameState>;
       return migrate(parsed);
@@ -85,6 +86,7 @@ export class SaveManager {
   static deleteSave(): void {
     localStorage.removeItem(SAVE_KEY);
     localStorage.removeItem(LEGACY_KEY);
+    localStorage.removeItem(LEGACY_V3_KEY);
     localStorage.removeItem(LEGACY_V2_KEY);
     localStorage.removeItem(LEGACY_V1_KEY);
   }

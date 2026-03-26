@@ -95,6 +95,51 @@ export function migrate(raw: Partial<GameState>): GameState {
     };
   }
 
+  // Version 4 → 5 (Cultivation system refactor: 5 stages → 13 stages, variable sub-stages)
+  if (data.version < 5) {
+    // Stage index mapping: old 0-4 → new 0-4 (same first 5 stages, just content changes)
+    // Sub-stage mapping: old 9 sub-stages → new variable count
+    // 炼气: old 9 → new 13 sub-stages (keep index as-is, already valid 0-8)
+    // Others: old 9 sub-stages → new 4 sub-stages (初期/中期/后期/大圆满)
+    if (data.cultivation) {
+      const oldSubStageIndex = data.cultivation.subStageIndex ?? 0;
+      const oldStageIndex = data.cultivation.stageIndex ?? 0;
+
+      if (oldStageIndex === 0) {
+        // 炼气: old 9 sub-stages → new 13 sub-stages, scale proportionally
+        data.cultivation.subStageIndex = Math.min(Math.floor(oldSubStageIndex * 12 / 8), 12);
+      } else if (oldStageIndex >= 1 && oldStageIndex <= 4) {
+        // Other stages: old 9 sub-stages → new 4 sub-stages
+        // old 0-2 (初期) → new 0 (初期)
+        // old 3-5 (中期) → new 1 (中期)
+        // old 6-7 (后期) → new 2 (后期)
+        // old 8 (后期三层, final) → new 3 (大圆满)
+        if (oldSubStageIndex <= 2) {
+          data.cultivation.subStageIndex = 0;
+        } else if (oldSubStageIndex <= 5) {
+          data.cultivation.subStageIndex = 1;
+        } else if (oldSubStageIndex <= 7) {
+          data.cultivation.subStageIndex = 2;
+        } else {
+          data.cultivation.subStageIndex = 3;
+        }
+      }
+      // stageIndex stays the same (0-4 maps directly)
+    }
+    // Migrate old golden_core_pill inventory to core_formation_pill
+    if (data.inventory?.items) {
+      const oldPillCount = data.inventory.items['golden_core_pill'] ?? 0;
+      if (oldPillCount > 0) {
+        data.inventory.items['core_formation_pill'] = (data.inventory.items['core_formation_pill'] ?? 0) + oldPillCount;
+        delete data.inventory.items['golden_core_pill'];
+      }
+    }
+    data = {
+      ...data,
+      version: 5,
+    };
+  }
+
   return data as GameState;
 }
 
