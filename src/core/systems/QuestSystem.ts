@@ -14,7 +14,6 @@ export function createInitialQuestState(): DailyQuestState {
       claimed: false,
     })),
     dailySpiritStonesEarned: 0,
-    dailyUpgradesBought: 0,
   };
 }
 
@@ -35,7 +34,6 @@ export function refreshDailyQuestsIfNeeded(state: DailyQuestState): DailyQuestSt
       claimed: false,
     })),
     dailySpiritStonesEarned: 0,
-    dailyUpgradesBought: 0,
   };
 }
 
@@ -45,7 +43,6 @@ export interface QuestEventData {
   herbsHarvested?: number;
   pillsCrafted?: number;
   spiritStonesEarned?: number;
-  upgradesBought?: number;
 }
 
 export function updateQuestProgress(
@@ -55,7 +52,6 @@ export function updateQuestProgress(
   const updated = {
     ...state,
     dailySpiritStonesEarned: state.dailySpiritStonesEarned + (events.spiritStonesEarned ?? 0),
-    dailyUpgradesBought: state.dailyUpgradesBought + (events.upgradesBought ?? 0),
     quests: state.quests.map(qp => {
       if (qp.completed) return qp;
       const def = QUEST_POOL.find(q => q.id === qp.questId);
@@ -73,11 +69,7 @@ export function updateQuestProgress(
           increment = events.pillsCrafted ?? 0;
           break;
         case 'spiritStones':
-          // We need to check against the cumulative dailySpiritStonesEarned
           // handled separately below
-          break;
-        case 'upgrade':
-          increment = events.upgradesBought ?? 0;
           break;
       }
 
@@ -99,13 +91,13 @@ export function updateQuestProgress(
   return updated;
 }
 
-/** Apply quest reward to inventory and return updated spiritStones bonus */
+/** Apply quest reward to inventory */
 export function claimQuestReward(
   questId: string,
   inventory: Inventory,
-): { spiritStonesBonus: number; updatedInventory: Inventory } {
+): { updatedInventory: Inventory } {
   const def = QUEST_POOL.find(q => q.id === questId);
-  if (!def) return { spiritStonesBonus: 0, updatedInventory: inventory };
+  if (!def) return { updatedInventory: inventory };
 
   const newItems = { ...inventory.items };
   if (def.reward.items) {
@@ -115,7 +107,6 @@ export function claimQuestReward(
   }
 
   return {
-    spiritStonesBonus: def.reward.spiritStones ?? 0,
     updatedInventory: { ...inventory, items: newItems },
   };
 }

@@ -1,4 +1,4 @@
-export type QuestType = 'fish' | 'herb' | 'alchemy' | 'breakthrough' | 'spiritStones' | 'upgrade';
+export type QuestType = 'fish' | 'herb' | 'alchemy' | 'breakthrough' | 'spiritStones';
 
 export interface QuestReward {
   spiritStones?: number;
@@ -26,7 +26,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🎣',
     type: 'fish',
     target: 5,
-    reward: { spiritStones: 50, items: [{ itemId: 'spirit_grass_seed', quantity: 2 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 50 }, { itemId: 'spirit_grass_seed', quantity: 2 }] },
     difficultyTier: 1,
   },
   {
@@ -36,7 +36,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🐟',
     type: 'fish',
     target: 20,
-    reward: { spiritStones: 200, items: [{ itemId: 'fire_herb_seed', quantity: 1 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 200 }, { itemId: 'fire_herb_seed', quantity: 1 }] },
     difficultyTier: 2,
   },
   {
@@ -46,7 +46,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🏆',
     type: 'fish',
     target: 50,
-    reward: { spiritStones: 500, items: [{ itemId: 'jade_fish', quantity: 3 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 500 }, { itemId: 'jade_fish', quantity: 3 }] },
     difficultyTier: 3,
   },
 
@@ -58,7 +58,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🌿',
     type: 'herb',
     target: 3,
-    reward: { spiritStones: 80, items: [{ itemId: 'spirit_grass_seed', quantity: 3 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 80 }, { itemId: 'spirit_grass_seed', quantity: 3 }] },
     difficultyTier: 1,
   },
   {
@@ -68,7 +68,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🌱',
     type: 'herb',
     target: 10,
-    reward: { spiritStones: 300, items: [{ itemId: 'fire_herb_seed', quantity: 2 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 300 }, { itemId: 'fire_herb_seed', quantity: 2 }] },
     difficultyTier: 2,
   },
   {
@@ -78,7 +78,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🌾',
     type: 'herb',
     target: 25,
-    reward: { spiritStones: 800, items: [{ itemId: 'moon_flower_seed', quantity: 1 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 800 }, { itemId: 'moon_flower_seed', quantity: 1 }] },
     difficultyTier: 3,
   },
 
@@ -90,7 +90,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '⚗️',
     type: 'alchemy',
     target: 2,
-    reward: { spiritStones: 100 },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 100 }] },
     difficultyTier: 1,
   },
   {
@@ -100,7 +100,7 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '💊',
     type: 'alchemy',
     target: 8,
-    reward: { spiritStones: 400, items: [{ itemId: 'spirit_grass', quantity: 5 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 400 }, { itemId: 'spirit_grass', quantity: 5 }] },
     difficultyTier: 2,
   },
   {
@@ -110,40 +110,30 @@ export const QUEST_POOL: QuestDef[] = [
     icon: '🔥',
     type: 'alchemy',
     target: 20,
-    reward: { spiritStones: 1000, items: [{ itemId: 'gathering_pill', quantity: 1 }] },
+    reward: { items: [{ itemId: 'spirit_stone', quantity: 1000 }, { itemId: 'gathering_pill', quantity: 1 }] },
     difficultyTier: 3,
   },
 
-  // Spirit stones quests
+  // Spirit stones quests (earned via selling/combat)
   {
     id: 'daily_stones_500',
     name: '积少成多',
-    description: '今日积累500灵石（被动收入）',
+    description: '今日累计获得500灵石',
     icon: '💎',
     type: 'spiritStones',
     target: 500,
-    reward: { spiritStones: 150 },
+    reward: { items: [{ itemId: 'spirit_grass_seed', quantity: 3 }] },
     difficultyTier: 1,
   },
   {
     id: 'daily_stones_2000',
     name: '灵石滚滚',
-    description: '今日积累2,000灵石（被动收入）',
+    description: '今日累计获得2,000灵石',
     icon: '💰',
     type: 'spiritStones',
     target: 2000,
-    reward: { spiritStones: 600 },
+    reward: { items: [{ itemId: 'gathering_pill', quantity: 1 }] },
     difficultyTier: 2,
-  },
-  {
-    id: 'daily_upgrade',
-    name: '精益求精',
-    description: '今日购买1次升级',
-    icon: '🔮',
-    type: 'upgrade',
-    target: 1,
-    reward: { spiritStones: 200 },
-    difficultyTier: 1,
   },
 ];
 

@@ -110,10 +110,6 @@ export function migrate(raw: Partial<GameState>): GameState {
         data.cultivation.subStageIndex = Math.min(Math.floor(oldSubStageIndex * 12 / 8), 12);
       } else if (oldStageIndex >= 1 && oldStageIndex <= 4) {
         // Other stages: old 9 sub-stages → new 4 sub-stages
-        // old 0-2 (初期) → new 0 (初期)
-        // old 3-5 (中期) → new 1 (中期)
-        // old 6-7 (后期) → new 2 (后期)
-        // old 8 (后期三层, final) → new 3 (大圆满)
         if (oldSubStageIndex <= 2) {
           data.cultivation.subStageIndex = 0;
         } else if (oldSubStageIndex <= 5) {
@@ -124,7 +120,6 @@ export function migrate(raw: Partial<GameState>): GameState {
           data.cultivation.subStageIndex = 3;
         }
       }
-      // stageIndex stays the same (0-4 maps directly)
     }
     // Migrate old golden_core_pill inventory to core_formation_pill
     if (data.inventory?.items) {
@@ -138,6 +133,43 @@ export function migrate(raw: Partial<GameState>): GameState {
       ...data,
       version: 5,
     };
+  }
+
+  // Version 5 → 6 (Remove resources/upgrades system, add meditation and activity mutex)
+  if (data.version < 6) {
+    // Migrate old spiritStones from resources to inventory
+    const oldSpiritStones = data.resources?.spiritStones
+      ? Math.floor(parseFloat(data.resources.spiritStones))
+      : 0;
+    if (!data.inventory) data.inventory = { items: {} };
+    if (!data.inventory.items) data.inventory.items = {};
+    data.inventory.items['spirit_stone'] = (data.inventory.items['spirit_stone'] ?? 0) + oldSpiritStones;
+
+    // Remove old resource fields
+    if (data.resources) {
+      delete data.resources.spiritStones;
+      delete data.resources.spiritStonesPerSec;
+      delete data.resources.expPerSec;
+    }
+
+    // Remove upgrades
+    delete data.upgrades;
+
+    // Add meditation and activity states
+    data = {
+      ...data,
+      meditation: data.meditation ?? { isActive: false },
+      activeActivity: data.activeActivity ?? null,
+      // Remove dailyUpgradesBought from quest state
+      dailyQuests: data.dailyQuests ? {
+        ...data.dailyQuests,
+      } : createInitialQuestState(),
+      version: 6,
+    };
+    // Clean up dailyUpgradesBought if present
+    if (data.dailyQuests) {
+      delete data.dailyQuests.dailyUpgradesBought;
+    }
   }
 
   return data as GameState;

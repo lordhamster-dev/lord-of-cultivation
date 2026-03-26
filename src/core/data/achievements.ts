@@ -10,7 +10,7 @@ export interface AchievementDef {
   category: AchievementCategory;
   condition: (state: GameState) => boolean;
   reward?: {
-    type: 'spiritStones' | 'item' | 'skillExp';
+    type: 'item' | 'skillExp';
     value: number | string;
   };
   isHidden?: boolean;
@@ -25,27 +25,27 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: '💎',
     category: 'general',
     condition: (s) => {
-      try { return parseFloat(s.resources.spiritStones) >= 100; } catch { return false; }
+      return (s.inventory.items['spirit_stone'] ?? 0) >= 100;
     },
   },
   {
     id: 'thousand_stones',
     name: '千石之财',
-    description: '积累1,000枚灵石',
+    description: '拥有1,000枚灵石',
     icon: '💎',
     category: 'general',
     condition: (s) => {
-      try { return parseFloat(s.resources.spiritStones) >= 1000; } catch { return false; }
+      return (s.inventory.items['spirit_stone'] ?? 0) >= 1000;
     },
   },
   {
     id: 'million_stones',
     name: '灵石如山',
-    description: '积累1,000,000枚灵石',
+    description: '拥有1,000,000枚灵石',
     icon: '💰',
     category: 'general',
     condition: (s) => {
-      try { return parseFloat(s.resources.spiritStones) >= 1_000_000; } catch { return false; }
+      return (s.inventory.items['spirit_stone'] ?? 0) >= 1_000_000;
     },
     isHidden: true,
   },
