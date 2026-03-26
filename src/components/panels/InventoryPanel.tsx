@@ -19,7 +19,7 @@ const CATEGORY_TABS: { id: CategoryFilter; label: string }[] = [
 
 export function InventoryPanel() {
   const inventory = useGameStore(s => s.inventory);
-  const useItem = useGameStore(s => s.useItem);
+  const consumeItem = useGameStore(s => s.useItem);
   const sellItem = useGameStore(s => s.sellItem);
   const gatheringPillEndTime = useGameStore(s => s.gatheringPillEndTime);
   const [filter, setFilter] = useState<CategoryFilter>('all');
@@ -118,7 +118,7 @@ export function InventoryPanel() {
           {selectedItem.category === 'pill' && selectedItem.id === 'gathering_pill' && (
             <Button
               variant="primary"
-              onClick={() => { if (useItem(selectedItem.id)) setSelected(null); }}
+              onClick={() => { if (consumeItem(selectedItem.id)) setSelected(null); }}
               className="w-full mt-2"
               disabled={selectedQty < 1 || isPillActive}
             >
