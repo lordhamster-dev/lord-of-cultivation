@@ -27,6 +27,11 @@ export const ITEMS: ItemDef[] = [
   { id: 'phoenix_carp', name: '凤尾鲤', description: '传说中的仙灵鱼类', category: 'fish', stackable: true },
   // Materials
   { id: 'fire_crystal', name: '火晶石', description: '火山中凝聚的火属性晶石', category: 'material', stackable: true },
+  { id: 'beast_hide', name: '灵兽皮', description: '灵兽身上剥取的皮革，炼器基础材料', category: 'material', stackable: true },
+  { id: 'beast_bone', name: '灵兽骨', description: '灵兽的骨骼，蕴含灵气', category: 'material', stackable: true },
+  { id: 'iron_ore', name: '灵铁矿', description: '蕴含灵气的铁矿石，炼器核心材料', category: 'material', stackable: true },
+  { id: 'demon_core', name: '妖核', description: '妖兽体内的核心，蕴含强大妖力', category: 'material', stackable: true },
+  { id: 'void_crystal', name: '虚空结晶', description: '虚空中凝聚的稀有晶体，高阶炼器材料', category: 'material', stackable: true },
   // Pills
   { id: 'gathering_pill', name: '聚气丹', description: '服用后灵石产出+50%，持续5分钟', category: 'pill', stackable: true },
   { id: 'foundation_pill', name: '筑基丹', description: '降低筑基突破所需灵石50%', category: 'pill', stackable: true },

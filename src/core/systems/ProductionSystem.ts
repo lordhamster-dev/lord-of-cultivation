@@ -1,7 +1,8 @@
 import { STAGES } from '../data/stages';
 import { UPGRADES, getUpgrade } from '../data/upgrades';
 import { getTechniqueMultiplier, getTechnique } from '../data/techniques';
-import type { ResourceState } from '../types';
+import type { ResourceState, EquipmentState } from '../types';
+import { getEquipmentBonuses } from '../systems/EquipmentSystem';
 
 /** Spirit capacity per major stage */
 const SPIRIT_MAX_BY_STAGE = [100, 200, 500, 1000, 2000];
@@ -16,6 +17,7 @@ export function computeProductionRates(
   stageIndex: number,
   upgrades: Record<string, number>,
   activeTechniqueId: string | null = null,
+  equipment?: EquipmentState,
 ): Pick<ResourceState, 'spiritStonesPerSec' | 'expPerSec' | 'spiritPerSec' | 'spiritMax'> {
   const stage = STAGES[stageIndex] ?? STAGES[0];
   const stageMultiplier = stage.multiplier;
@@ -50,6 +52,17 @@ export function computeProductionRates(
   if (activeTechniqueId) {
     spiritStonesPerSec *= getTechniqueMultiplier(activeTechniqueId, 'spiritStones');
     expPerSec *= getTechniqueMultiplier(activeTechniqueId, 'exp');
+  }
+
+  // Apply equipment bonuses
+  if (equipment) {
+    const bonuses = getEquipmentBonuses(equipment);
+    if (bonuses.spiritStonesPercent) {
+      spiritStonesPerSec *= 1 + bonuses.spiritStonesPercent;
+    }
+    if (bonuses.expPercent) {
+      expPerSec *= 1 + bonuses.expPercent;
+    }
   }
 
   // Spirit resource

@@ -1,5 +1,5 @@
 import Decimal from 'break_eternity.js';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 // ─── Sub-stage definition ────────────────────────────────────────────────────
 export interface SubStage {
@@ -27,7 +27,7 @@ export interface Inventory {
   items: Record<string, number>;
 }
 
-export type SkillId = 'farming' | 'fishing' | 'alchemy';
+export type SkillId = 'farming' | 'fishing' | 'alchemy' | 'combat' | 'forging';
 
 export interface SkillState {
   level: number;
@@ -78,10 +78,60 @@ export interface DailyQuestState {
   dailyUpgradesBought: number;     // for upgrade quest tracking
 }
 
+// ─── Combat types ─────────────────────────────────────────────────────────────
+export interface CombatStats {
+  attack: number;
+  defense: number;
+  hp: number;
+  maxHp: number;
+}
+
+export interface CombatState {
+  isActive: boolean;
+  currentAreaId: string | null;
+  enemyHp: number;
+  enemyMaxHp: number;
+  playerHp: number;
+  totalKills: number;
+  totalBossKills: number;
+  loot: { itemId: string; quantity: number }[];
+  lastCombatResult: 'none' | 'victory' | 'defeat';
+}
+
+// ─── Dungeon types ────────────────────────────────────────────────────────────
+export interface DungeonState {
+  isActive: boolean;
+  currentDungeonId: string | null;
+  currentFloor: number;
+  enemyHp: number;
+  enemyMaxHp: number;
+  playerHp: number;
+  dailyRuns: Record<string, number>; // dungeonId -> runs today
+  dailyDate: string; // YYYY-MM-DD
+  totalDungeonClears: number;
+}
+
+// ─── Equipment types ──────────────────────────────────────────────────────────
+export type EquipmentSlotId = 'weapon' | 'armor' | 'accessory';
+
+export interface EquipmentInstance {
+  defId: string;
+  level: number; // enhancement level 0-10
+}
+
+export interface EquipmentState {
+  equipped: Partial<Record<EquipmentSlotId, EquipmentInstance>>;
+  totalForged: number;
+}
+
 // ─── Game stats for achievement/quest tracking ────────────────────────────────
 export interface GameStats {
   totalHerbsHarvested: number;
   totalQuestsCompleted: number;
+  totalMonstersKilled: number;
+  totalBossesKilled: number;
+  totalDungeonClears: number;
+  totalEquipmentForged: number;
 }
 
 // ─── Extended GameState ───────────────────────────────────────────────────────
@@ -101,6 +151,9 @@ export interface GameState {
   achievements: AchievementState;
   dailyQuests: DailyQuestState;
   stats: GameStats;
+  combat: CombatState;
+  dungeon: DungeonState;
+  equipment: EquipmentState;
 }
 
 export interface SettingsState { theme: 'dark' | 'light'; offlineCapHours: number; autoSaveInterval: number; showNotifications: boolean; }

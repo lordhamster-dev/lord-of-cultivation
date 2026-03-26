@@ -2,9 +2,13 @@ import type { GameState } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
 import { createInitialQuestState } from '../core/systems/QuestSystem';
 import { createInitialAchievementState } from '../core/systems/AchievementSystem';
+import { createInitialCombatState } from '../core/systems/CombatSystem';
+import { createInitialDungeonState } from '../core/systems/DungeonSystem';
+import { createInitialEquipmentState } from '../core/systems/EquipmentSystem';
 
 /** Migrate a raw parsed save object to the current version. */
 export function migrate(raw: Partial<GameState>): GameState {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data = raw as any;
 
   // Version 0 → 1 (initial version, nothing to migrate)
@@ -64,6 +68,30 @@ export function migrate(raw: Partial<GameState>): GameState {
         totalQuestsCompleted: 0,
       },
       version: 3,
+    };
+  }
+
+  // Version 3 → 4
+  if (data.version < 4) {
+    // Add combat and forging skills
+    if (data.skills) {
+      data.skills.combat = data.skills.combat ?? { level: 1, exp: 0, maxExp: 83 };
+      data.skills.forging = data.skills.forging ?? { level: 1, exp: 0, maxExp: 83 };
+    }
+    // Add combat, dungeon, and equipment states
+    data = {
+      ...data,
+      combat: data.combat ?? createInitialCombatState(),
+      dungeon: data.dungeon ?? createInitialDungeonState(),
+      equipment: data.equipment ?? createInitialEquipmentState(),
+      stats: {
+        ...data.stats,
+        totalMonstersKilled: data.stats?.totalMonstersKilled ?? 0,
+        totalBossesKilled: data.stats?.totalBossesKilled ?? 0,
+        totalDungeonClears: data.stats?.totalDungeonClears ?? 0,
+        totalEquipmentForged: data.stats?.totalEquipmentForged ?? 0,
+      },
+      version: 4,
     };
   }
 

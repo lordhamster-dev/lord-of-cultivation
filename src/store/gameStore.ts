@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import Decimal from 'break_eternity.js';
 import { STAGES, MAX_STAGE_INDEX } from '../core/data/stages';
 import { UPGRADES } from '../core/data/upgrades';
-import { TECHNIQUES as _TECHNIQUES, getTechnique } from '../core/data/techniques';
+import { getTechnique } from '../core/data/techniques';
 import { computeResourceGain, applyResourceGain } from '../core/systems/ResourceSystem';
 import { computeProductionRates, getUpgradeCost } from '../core/systems/ProductionSystem';
 import { attemptBreakthrough, computeProgressGain, getBreakthroughCost, tryAdvanceSubStage, isAtFinalSubStage } from '../core/systems/CultivationSystem';
@@ -13,11 +13,16 @@ import { tickAlchemy, canCraft } from '../core/systems/AlchemySystem';
 import { addSkillExp, createInitialSkillState } from '../core/systems/SkillSystem';
 import { checkAchievements, createInitialAchievementState } from '../core/systems/AchievementSystem';
 import { createInitialQuestState, refreshDailyQuestsIfNeeded, updateQuestProgress, claimQuestReward } from '../core/systems/QuestSystem';
+import { tickCombat, createInitialCombatState, getPlayerCombatStats } from '../core/systems/CombatSystem';
+import { tickDungeon, createInitialDungeonState, refreshDungeonDaily, canEnterDungeon, startDungeon as startDungeonSystem } from '../core/systems/DungeonSystem';
+import { createInitialEquipmentState, canForge, forgeEquipment as forgeEquipmentSystem, canEnhance, enhanceEquipment as enhanceEquipmentSystem } from '../core/systems/EquipmentSystem';
 import { PLOT_UNLOCK_COSTS } from '../core/data/herbs';
 import { FISHING_AREAS } from '../core/data/fish';
 import { getRecipe } from '../core/data/recipes';
+import { getCombatArea } from '../core/data/enemies';
+import { getEquipment, getEnhanceCost, getEnhanceMaterials } from '../core/data/equipment';
 import { SaveManager } from '../save/SaveManager';
-import type { GameState } from '../core/types';
+import type { GameState, EquipmentSlotId } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
 import type { HerbPlot } from '../core/types';
 
@@ -35,6 +40,8 @@ const DEFAULT_STATE: GameState = {
     farming: createInitialSkillState(),
     fishing: createInitialSkillState(),
     alchemy: createInitialSkillState(),
+    combat: createInitialSkillState(),
+    forging: createInitialSkillState(),
   },
   herbPlots: Array.from({ length: 8 }, (_, i) => ({
     id: `plot_${i}`,
@@ -49,7 +56,10 @@ const DEFAULT_STATE: GameState = {
   gatheringPillEndTime: 0,
   achievements: createInitialAchievementState(),
   dailyQuests: createInitialQuestState(),
-  stats: { totalHerbsHarvested: 0, totalQuestsCompleted: 0 },
+  stats: { totalHerbsHarvested: 0, totalQuestsCompleted: 0, totalMonstersKilled: 0, totalBossesKilled: 0, totalDungeonClears: 0, totalEquipmentForged: 0 },
+  combat: createInitialCombatState(),
+  dungeon: createInitialDungeonState(),
+  equipment: createInitialEquipmentState(),
 };
 
 interface GameActions {
@@ -70,6 +80,11 @@ interface GameActions {
   useItem: (itemId: string) => boolean;
   activateTechnique: (techniqueId: string | null) => void;
   claimQuest: (questId: string) => boolean;
+  startCombat: (areaId: string) => void;
+  stopCombat: () => void;
+  startDungeon: (dungeonId: string) => boolean;
+  forgeEquipment: (equipDefId: string) => boolean;
+  enhanceEquipment: (slot: EquipmentSlotId) => boolean;
 }
 
 type GameStore = GameState & GameActions;
@@ -82,7 +97,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const now = Date.now();
         const isPillActive = now < state.gatheringPillEndTime;
-        const rates = computeProductionRates(state.cultivation.stageIndex, state.upgrades, state.cultivation.activeTechniqueId);
+        const rates = computeProductionRates(state.cultivation.stageIndex, state.upgrades, state.cultivation.activeTechniqueId, state.equipment);
         const effectiveStonesPerSec = isPillActive ? rates.spiritStonesPerSec * 1.5 : rates.spiritStonesPerSec;
         state.resources.spiritStonesPerSec = effectiveStonesPerSec;
         state.resources.expPerSec = rates.expPerSec;
@@ -151,6 +166,59 @@ export const useGameStore = create<GameStore>()(
         }
         state.alchemy = alchemyResult.alchemy;
         state.inventory = alchemyResult.inventory;
+
+        // Combat tick
+        if (state.combat.isActive) {
+          const playerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+          const area = getCombatArea(state.combat.currentAreaId ?? '');
+          const combatDurationMs = area?.combatDurationMs ?? 5000;
+          const combatResult = tickCombat(
+            state.combat,
+            playerStats,
+            state.inventory,
+            deltaMs,
+            combatDurationMs,
+          );
+          if (combatResult.expGain > 0) {
+            state.skills.combat = addSkillExp(state.skills.combat, combatResult.expGain);
+          }
+          if (combatResult.spiritStonesGain > 0) {
+            state.resources.spiritStones = new Decimal(state.resources.spiritStones).add(combatResult.spiritStonesGain).toString();
+          }
+          if (combatResult.combat.lastCombatResult === 'victory') {
+            state.stats.totalMonstersKilled += 1;
+          }
+          state.combat = combatResult.combat;
+          state.inventory = combatResult.inventory;
+        }
+
+        // Dungeon tick
+        if (state.dungeon.isActive) {
+          const playerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+          const dungeonResult = tickDungeon(
+            state.dungeon,
+            playerStats,
+            state.inventory,
+            deltaMs,
+          );
+          if (dungeonResult.expGain > 0) {
+            state.skills.combat = addSkillExp(state.skills.combat, dungeonResult.expGain);
+          }
+          if (dungeonResult.spiritStonesGain > 0) {
+            state.resources.spiritStones = new Decimal(state.resources.spiritStones).add(dungeonResult.spiritStonesGain).toString();
+          }
+          if (dungeonResult.bossDefeated) {
+            state.stats.totalBossesKilled += 1;
+          }
+          if (dungeonResult.dungeonCompleted) {
+            state.stats.totalDungeonClears += 1;
+          }
+          state.dungeon = dungeonResult.dungeon;
+          state.inventory = dungeonResult.inventory;
+        }
+
+        // Refresh dungeon daily
+        state.dungeon = refreshDungeonDaily(state.dungeon);
 
         // Track daily quest progress
         const fishCaughtDelta = state.fishing.totalFishCaught - prevFishCount;
@@ -232,6 +300,9 @@ export const useGameStore = create<GameStore>()(
         achievements: state.achievements,
         dailyQuests: state.dailyQuests,
         stats: state.stats,
+        combat: state.combat,
+        dungeon: state.dungeon,
+        equipment: state.equipment,
       };
       SaveManager.save(snapshot);
       set((draft) => { draft.lastSaveTime = snapshot.lastSaveTime; });
@@ -391,6 +462,83 @@ export const useGameStore = create<GameStore>()(
         }
         draft.inventory = updatedInventory;
         draft.stats.totalQuestsCompleted += 1;
+      });
+      return true;
+    },
+
+    startCombat(areaId: string): void {
+      const state = get();
+      const area = getCombatArea(areaId);
+      if (!area) return;
+      if (state.cultivation.stageIndex < area.requiredStage) return;
+      if (state.dungeon.isActive) return; // can't combat while in dungeon
+      const playerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+      set((draft) => {
+        draft.combat = {
+          isActive: true,
+          currentAreaId: areaId,
+          enemyHp: 0,
+          enemyMaxHp: 0,
+          playerHp: playerStats.maxHp,
+          totalKills: draft.combat.totalKills,
+          totalBossKills: draft.combat.totalBossKills,
+          loot: [],
+          lastCombatResult: 'none',
+        };
+      });
+    },
+
+    stopCombat(): void {
+      set((draft) => {
+        draft.combat.isActive = false;
+        draft.combat.currentAreaId = null;
+      });
+    },
+
+    startDungeon(dungeonId: string): boolean {
+      const state = get();
+      if (state.combat.isActive) return false; // can't enter dungeon while in combat
+      if (!canEnterDungeon(state.dungeon, dungeonId, state.cultivation.stageIndex)) return false;
+      const playerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+      set((draft) => {
+        draft.dungeon = startDungeonSystem(draft.dungeon, dungeonId, playerStats.maxHp);
+      });
+      return true;
+    },
+
+    forgeEquipment(equipDefId: string): boolean {
+      const state = get();
+      const def = getEquipment(equipDefId);
+      if (!def) return false;
+      if (!canForge(def, state.inventory, parseFloat(state.resources.spiritStones), state.skills.forging.level, state.cultivation.stageIndex)) return false;
+
+      const result = forgeEquipmentSystem(equipDefId, state.equipment, state.inventory);
+      if (!result.success) return false;
+
+      set((draft) => {
+        draft.equipment = result.equipment;
+        draft.inventory = result.inventory;
+        draft.resources.spiritStones = new Decimal(draft.resources.spiritStones).sub(result.spiritStonesCost).toString();
+        draft.skills.forging = addSkillExp(draft.skills.forging, result.exp);
+        draft.stats.totalEquipmentForged += 1;
+      });
+      return true;
+    },
+
+    enhanceEquipment(slot: EquipmentSlotId): boolean {
+      const state = get();
+      const instance = state.equipment.equipped[slot];
+      if (!instance) return false;
+      if (!canEnhance(instance, state.inventory, parseFloat(state.resources.spiritStones))) return false;
+
+      const result = enhanceEquipmentSystem(slot, state.equipment, state.inventory);
+      if (!result.success) return false;
+
+      set((draft) => {
+        draft.equipment = result.equipment;
+        draft.inventory = result.inventory;
+        draft.resources.spiritStones = new Decimal(draft.resources.spiritStones).sub(result.spiritStonesCost).toString();
+        draft.skills.forging = addSkillExp(draft.skills.forging, result.exp);
       });
       return true;
     },
