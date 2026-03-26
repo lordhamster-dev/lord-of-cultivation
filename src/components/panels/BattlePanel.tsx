@@ -353,6 +353,24 @@ export function BattlePanel() {
                       敌人: {area.enemies.map(e => `${e.icon}${e.name}`).join('、')}
                     </div>
                   )}
+                  {unlocked && (() => {
+                    const dropMap = new Map<string, number>();
+                    area.enemies.forEach(e => e.drops.forEach(d => {
+                      dropMap.set(d.itemId, Math.max(dropMap.get(d.itemId) ?? 0, d.chance));
+                    }));
+                    return dropMap.size > 0 ? (
+                      <div className="text-xs text-slate-500 mt-1">
+                        掉落: {Array.from(dropMap.entries()).map(([itemId, chance]) => {
+                          const def = getItem(itemId);
+                          return def ? (
+                            <span key={itemId} className="inline-block bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400 mr-1 mt-0.5">
+                              {def.emoji}{def.name} {(chance * 100).toFixed(0)}%
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    ) : null;
+                  })()}
                 </button>
               );
             })}
@@ -419,6 +437,24 @@ export function BattlePanel() {
                       ))}
                     </div>
                   )}
+                  {unlocked && (() => {
+                    const bossFloor = d.floors.find(f => f.boss);
+                    const boss = bossFloor?.boss;
+                    if (!boss || boss.drops.length === 0) return null;
+                    return (
+                      <div className="mt-2 text-xs text-slate-500">
+                        <span className="text-red-400 mr-1">BOSS掉落:</span>
+                        {boss.drops.map(drop => {
+                          const def = getItem(drop.itemId);
+                          return def ? (
+                            <span key={drop.itemId} className="inline-block bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400 mr-1 mt-0.5">
+                              {def.emoji}{def.name} {(drop.chance * 100).toFixed(0)}%
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
