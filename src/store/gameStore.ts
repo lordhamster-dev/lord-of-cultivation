@@ -20,7 +20,7 @@ import { PLOT_UNLOCK_COSTS } from '../core/data/herbs';
 import { FISHING_AREAS } from '../core/data/fish';
 import { getRecipe } from '../core/data/recipes';
 import { getCombatArea } from '../core/data/enemies';
-import { getEquipment, getEnhanceCost, getEnhanceMaterials } from '../core/data/equipment';
+import { getEquipment } from '../core/data/equipment';
 import { SaveManager } from '../save/SaveManager';
 import type { GameState, EquipmentSlotId } from '../core/types';
 import { SAVE_VERSION } from '../core/types';

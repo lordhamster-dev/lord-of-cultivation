@@ -10,6 +10,8 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   farming: '种植',
   alchemy: '炼丹',
   general: '综合',
+  combat: '战斗',
+  equipment: '炼器',
 };
 
 export function AchievementPanel() {

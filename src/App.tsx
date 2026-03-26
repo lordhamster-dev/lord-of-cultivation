@@ -12,12 +12,15 @@ import { FishingPanel } from './components/panels/FishingPanel';
 import { AlchemyPanel } from './components/panels/AlchemyPanel';
 import { AchievementPanel } from './components/panels/AchievementPanel';
 import { QuestPanel } from './components/panels/QuestPanel';
+import { CombatPanel } from './components/panels/CombatPanel';
+import { DungeonPanel } from './components/panels/DungeonPanel';
+import { EquipmentPanel } from './components/panels/EquipmentPanel';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useOfflineProgress } from './hooks/useOfflineProgress';
 import { Button } from './components/ui/Button';
 import { NumberDisplay } from './components/ui/NumberDisplay';
 
-type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests';
+type Panel = 'cultivation' | 'resources' | 'upgrades' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests' | 'combat' | 'dungeon' | 'equipment';
 
 function OfflineModal({
   show,
@@ -81,6 +84,9 @@ function App() {
       case 'alchemy':     return <AlchemyPanel />;
       case 'achievements': return <AchievementPanel />;
       case 'quests':      return <QuestPanel />;
+      case 'combat':      return <CombatPanel />;
+      case 'dungeon':     return <DungeonPanel />;
+      case 'equipment':   return <EquipmentPanel />;
     }
   };
 

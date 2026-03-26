@@ -1,5 +1,3 @@
-import type { EnemyDef } from './enemies';
-
 export interface DungeonFloor {
   floor: number;
   enemies: DungeonEnemyDef[];

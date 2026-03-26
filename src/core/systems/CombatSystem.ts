@@ -1,8 +1,7 @@
 import type { CombatState, CombatStats, Inventory, EquipmentState, ItemStack } from '../types';
 import { getCombatArea } from '../data/enemies';
 import type { EnemyDef, CombatAreaDef } from '../data/enemies';
-import { getEquipmentTotalStats, getEquipment } from '../data/equipment';
-import { STAGES } from '../data/stages';
+import { getEquipmentTotalStats } from '../data/equipment';
 
 /** Base stats by cultivation stage */
 const BASE_STATS_BY_STAGE: CombatStats[] = [
