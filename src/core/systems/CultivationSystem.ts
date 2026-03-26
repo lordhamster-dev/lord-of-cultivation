@@ -1,6 +1,6 @@
-import Decimal from 'break_eternity.js';
 import { STAGES, MAX_STAGE_INDEX, getSubStageCount } from '../data/stages';
-import type { CultivationState, ResourceState, Inventory } from '../types';
+import type { CultivationState, Inventory } from '../types';
+import { getSpiritStoneCount } from './ResourceSystem';
 
 export interface BreakthroughResult {
   success: boolean;
@@ -17,16 +17,15 @@ export interface SubStageAdvanceResult {
 
 /**
  * Get the spirit stones cost for breakthrough at the current stage,
- * accounting for the alchemy upgrade reduction ratio and optional pill discount.
+ * accounting for optional pill discount.
  */
 export function getBreakthroughCost(
   stageIndex: number,
-  alchemyRatio: number,
   hasPill = false,
 ): number {
   const stageData = STAGES[stageIndex];
   if (!stageData) return Infinity;
-  let cost = stageData.breakCost * alchemyRatio;
+  let cost = stageData.breakCost;
   if (hasPill && stageData.breakPillId && stageData.breakPillDiscount > 0) {
     cost *= (1 - stageData.breakPillDiscount);
   }
@@ -76,12 +75,10 @@ export function tryAdvanceSubStage(cultivation: CultivationState): SubStageAdvan
 
 /**
  * Attempt a breakthrough to the next major stage.
- * If the player has a corresponding breakthrough pill, it will be used to reduce cost.
+ * Uses spirit stones from inventory.
  */
 export function attemptBreakthrough(
   cultivation: CultivationState,
-  resources: ResourceState,
-  alchemyRatio: number,
   inventory: Inventory,
 ): BreakthroughResult {
   if (cultivation.progress < MAX_CULTIVATION_PROGRESS) {
@@ -97,9 +94,9 @@ export function attemptBreakthrough(
   }
 
   const hasPill = hasBreakthroughPill(cultivation.stageIndex, inventory);
-  const cost = getBreakthroughCost(cultivation.stageIndex, alchemyRatio, hasPill);
-  const stones = new Decimal(resources.spiritStones);
-  if (stones.lt(cost)) {
+  const cost = getBreakthroughCost(cultivation.stageIndex, hasPill);
+  const stones = getSpiritStoneCount(inventory);
+  if (stones < cost) {
     return { success: false, reason: `灵石不足，需要 ${cost} 灵石` };
   }
 
