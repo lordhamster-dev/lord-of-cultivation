@@ -1,5 +1,5 @@
 import Decimal from 'break_eternity.js';
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 // ─── Sub-stage definition ────────────────────────────────────────────────────
 export interface SubStage {
@@ -125,7 +125,7 @@ export interface DungeonState {
 }
 
 // ─── Equipment types ──────────────────────────────────────────────────────────
-export type EquipmentSlotId = 'weapon' | 'armor' | 'accessory';
+export type EquipmentSlotId = 'necklace' | 'helmet' | 'amulet' | 'glove_left' | 'armor' | 'glove_right' | 'ring_left' | 'boots' | 'ring_right';
 
 export interface EquipmentInstance {
   defId: string;
@@ -135,6 +135,22 @@ export interface EquipmentInstance {
 export interface EquipmentState {
   equipped: Partial<Record<EquipmentSlotId, EquipmentInstance>>;
   totalForged: number;
+}
+
+// ─── Combat supply types ──────────────────────────────────────────────────────
+export interface CombatSupplyConfig {
+  spiritItemId: string | null;    // item used for spirit recovery
+  spiritItemCount: number;        // how many to bring
+  spiritThreshold: number;        // auto-use when spirit% drops below this (0-100)
+  hpItemId: string | null;        // item used for HP recovery
+  hpItemCount: number;            // how many to bring
+  hpThreshold: number;            // auto-use when HP% drops below this (0-100)
+}
+
+export interface CombatSupplyState {
+  config: CombatSupplyConfig;
+  spiritItemsUsed: number;        // items used this combat session
+  hpItemsUsed: number;            // items used this combat session
 }
 
 // ─── Game stats for achievement/quest tracking ────────────────────────────────
@@ -168,6 +184,7 @@ export interface GameState {
   combat: CombatState;
   dungeon: DungeonState;
   equipment: EquipmentState;
+  combatSupply: CombatSupplyState;
 }
 
 export interface SettingsState { theme: 'dark' | 'light'; offlineCapHours: number; autoSaveInterval: number; showNotifications: boolean; }
