@@ -16,7 +16,7 @@ export const ALCHEMY_RECIPES: AlchemyRecipeDef[] = [
   {
     id: 'gathering_pill',
     name: '聚气丹',
-    description: '服用后灵石产出+50%，持续5分钟',
+    description: '服用后打坐灵力恢复效率+50%，持续5分钟',
     ingredients: [{ itemId: 'spirit_grass', quantity: 3 }],
     outputItemId: 'gathering_pill',
     outputQuantity: [1, 3],

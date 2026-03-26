@@ -11,10 +11,11 @@ import { AlchemyPanel } from './components/panels/AlchemyPanel';
 import { AchievementPanel } from './components/panels/AchievementPanel';
 import { QuestPanel } from './components/panels/QuestPanel';
 import { BattlePanel } from './components/panels/BattlePanel';
+import { ForgePanel } from './components/panels/ForgePanel';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useLoadSave } from './hooks/useLoadSave';
 
-type Panel = 'cultivation' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests' | 'combat';
+type Panel = 'cultivation' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests' | 'combat' | 'forge';
 
 function App() {
   const [activePanel, setActivePanel] = useState<Panel>('cultivation');
@@ -34,6 +35,7 @@ function App() {
       case 'achievements': return <AchievementPanel />;
       case 'quests':      return <QuestPanel />;
       case 'combat':      return <BattlePanel />;
+      case 'forge':       return <ForgePanel />;
     }
   };
 
