@@ -103,9 +103,6 @@ export function CultivationPanel() {
           </div>
           <div className="text-right">
             <div className="text-slate-300 text-sm">
-              💎 灵石: <span className="text-amber-300">{spiritStones.toLocaleString()}</span>
-            </div>
-            <div className="text-slate-300 text-sm">
               ✨ 经验: <span className="text-blue-300"><NumberDisplay value={exp} /></span>
             </div>
           </div>
