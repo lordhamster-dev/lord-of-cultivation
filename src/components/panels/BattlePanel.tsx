@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { ProgressBar } from '../ui/ProgressBar';
 import { SkillBar } from '../ui/SkillBar';
@@ -148,6 +148,23 @@ export function BattlePanel() {
     { id: 'equipment', label: '🛡️ 装备' },
     { id: 'supply', label: '🎒 补给' },
   ];
+
+  // Precompute drop maps for combat areas (static data, memoized for render efficiency)
+  const combatAreaDropMaps = useMemo(() =>
+    COMBAT_AREAS.map(area => {
+      const dropMap = new Map<string, number>();
+      area.enemies.forEach(e => e.drops.forEach(d => {
+        dropMap.set(d.itemId, Math.max(dropMap.get(d.itemId) ?? 0, d.chance));
+      }));
+      return { areaId: area.id, dropMap };
+    }), []);
+
+  // Precompute boss drops for dungeons (static data, memoized for render efficiency)
+  const dungeonBossDrops = useMemo(() =>
+    DUNGEONS.map(d => {
+      const boss = d.floors.find(f => f.boss)?.boss ?? null;
+      return { dungeonId: d.id, boss };
+    }), []);
 
   const isInCombat = combat.isActive || dungeon.isActive;
 
@@ -354,10 +371,7 @@ export function BattlePanel() {
                     </div>
                   )}
                   {unlocked && (() => {
-                    const dropMap = new Map<string, number>();
-                    area.enemies.forEach(e => e.drops.forEach(d => {
-                      dropMap.set(d.itemId, Math.max(dropMap.get(d.itemId) ?? 0, d.chance));
-                    }));
+                    const { dropMap } = combatAreaDropMaps.find(m => m.areaId === area.id)!;
                     return dropMap.size > 0 ? (
                       <div className="text-xs text-slate-500 mt-1">
                         掉落: {Array.from(dropMap.entries()).map(([itemId, chance]) => {
@@ -438,8 +452,7 @@ export function BattlePanel() {
                     </div>
                   )}
                   {unlocked && (() => {
-                    const bossFloor = d.floors.find(f => f.boss);
-                    const boss = bossFloor?.boss;
+                    const boss = dungeonBossDrops.find(b => b.dungeonId === d.id)?.boss ?? null;
                     if (!boss || boss.drops.length === 0) return null;
                     return (
                       <div className="mt-2 text-xs text-slate-500">
