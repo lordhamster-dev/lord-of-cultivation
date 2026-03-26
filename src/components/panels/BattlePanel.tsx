@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useGameStore, selectSpiritStones } from '../../store/gameStore';
+import { useGameStore } from '../../store/gameStore';
 import { ProgressBar } from '../ui/ProgressBar';
 import { SkillBar } from '../ui/SkillBar';
 import { Button } from '../ui/Button';
-import { NumberDisplay } from '../ui/NumberDisplay';
 import { COMBAT_AREAS } from '../../core/data/enemies';
 import { DUNGEONS, getDungeon } from '../../core/data/dungeons';
-import { EQUIPMENT, getEquipment, getEnhanceCost, getEnhanceMaterials, getEquipmentTotalStats } from '../../core/data/equipment';
+import { getEquipment, getEquipmentTotalStats } from '../../core/data/equipment';
 import type { EquipmentDef } from '../../core/data/equipment';
 import { getPlayerCombatStats } from '../../core/systems/CombatSystem';
-import { canForge, canEnhance } from '../../core/systems/EquipmentSystem';
 import { getItem } from '../../core/data/items';
 import type { EquipmentSlotId } from '../../core/types';
 
@@ -88,26 +86,20 @@ export function BattlePanel() {
   const activeActivity = useGameStore(s => s.activeActivity);
   const spirit = useGameStore(s => s.resources.spirit);
   const spiritMax = useGameStore(s => s.resources.spiritMax);
-  const spiritStones = useGameStore(selectSpiritStones);
   const stats = useGameStore(s => s.stats);
   const combatSupply = useGameStore(s => s.combatSupply);
 
   const startCombat = useGameStore(s => s.startCombat);
   const stopCombat = useGameStore(s => s.stopCombat);
   const startDungeon = useGameStore(s => s.startDungeon);
-  const forgeEquipment = useGameStore(s => s.forgeEquipment);
-  const enhanceEquipment = useGameStore(s => s.enhanceEquipment);
   const unequipItem = useGameStore(s => s.unequipItem);
   const updateCombatSupplyConfig = useGameStore(s => s.updateCombatSupplyConfig);
 
   const combatLevel = skills.combat.level;
-  const forgingLevel = skills.forging.level;
 
   const [activeTab, setActiveTab] = useState<BattleTab>('combat');
   const [selectedArea, setSelectedArea] = useState(COMBAT_AREAS[0].id);
   const [selectedGridSlot, setSelectedGridSlot] = useState<EquipmentSlotId | null>(null);
-  const [selectedForge, setSelectedForge] = useState<string | null>(null);
-  const [equipAction, setEquipAction] = useState<'view' | 'forge' | 'enhance'>('view');
   const [, forceUpdate] = useState(0);
 
   useEffect(() => {
@@ -437,263 +429,76 @@ export function BattlePanel() {
       {/* ─── Equipment Tab ─────────────────────────────────────────── */}
       {activeTab === 'equipment' && (
         <div className="space-y-3">
-          {/* Equipment sub-tabs */}
-          <div className="flex gap-1">
-            {[
-              { id: 'view' as const, label: '👤 装备栏' },
-              { id: 'forge' as const, label: '🔨 炼器' },
-              { id: 'enhance' as const, label: '⬆️ 强化' },
-            ].map(sub => (
-              <button
-                key={sub.id}
-                onClick={() => setEquipAction(sub.id)}
-                className={`px-3 py-1 rounded text-xs transition-colors cursor-pointer ${
-                  equipAction === sub.id
-                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                    : 'text-slate-400 border border-slate-600 hover:text-slate-200'
-                }`}
-              >
-                {sub.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Forging skill bar */}
-          <div className="bg-slate-800 rounded-lg p-3">
-            <SkillBar skillName="炼器" skill={skills.forging} icon="🔨" />
-          </div>
-
           {/* ─── Equipment Grid View (9 slots) ─────────────────────── */}
-          {equipAction === 'view' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                {EQUIPMENT_GRID.map(({ slot, label, icon }) => {
-                  const instance = equipment.equipped[slot];
-                  const def = instance ? getEquipment(instance.defId) : null;
-                  const isSelected = selectedGridSlot === slot;
+          <div className="grid grid-cols-3 gap-2">
+            {EQUIPMENT_GRID.map(({ slot, label, icon }) => {
+              const instance = equipment.equipped[slot];
+              const def = instance ? getEquipment(instance.defId) : null;
+              const isSelected = selectedGridSlot === slot;
 
-                  return (
-                    <button
-                      key={slot}
-                      onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
-                      className={`p-2 rounded-lg border text-center transition-colors cursor-pointer min-h-[80px] flex flex-col items-center justify-center ${
-                        isSelected
-                          ? 'border-amber-500/50 bg-amber-500/10'
-                          : instance
-                          ? 'border-slate-500 bg-slate-800'
-                          : 'border-slate-700 bg-slate-800/50'
-                      }`}
-                    >
-                      <div className="text-lg">{def ? def.icon : icon}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{label}</div>
-                      {def && instance ? (
-                        <div className="text-xs text-amber-400 mt-0.5 truncate w-full">
-                          {def.name}{instance.level > 0 ? ` +${instance.level}` : ''}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-slate-600 mt-0.5">空</div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selected slot detail */}
-              {selectedGridSlot && (() => {
-                const instance = equipment.equipped[selectedGridSlot];
-                const def = instance ? getEquipment(instance.defId) : null;
-
-                return (
-                  <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 space-y-2">
-                    <div className="text-sm text-slate-300 font-medium">{getSlotLabel(selectedGridSlot)}</div>
-                    {def && instance ? (
-                      <>
-                        <EquipmentCard def={def} currentLevel={instance.level} />
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => { unequipItem(selectedGridSlot); setSelectedGridSlot(null); }}
-                          className="w-full"
-                        >
-                          卸下装备
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="text-sm text-slate-600 text-center py-2">
-                        — 未装备 —<br />
-                        <span className="text-xs text-slate-500">去炼器页面制造装备</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Stats summary */}
-              <div className="bg-slate-800 rounded-lg p-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">已炼制装备</span>
-                  <span className="text-amber-300">{equipment.totalForged}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Forge Sub-tab ──────────────────────────────────────── */}
-          {equipAction === 'forge' && (
-            <div className="space-y-3">
-              <div className="text-sm text-slate-400">选择要炼制的装备:</div>
-              <div className="space-y-2">
-                {EQUIPMENT.map(def => {
-                  const isForgeAvailable = canForge(def, inventory, spiritStones, forgingLevel, stageIndex);
-                  const isLevelLocked = forgingLevel < def.forgingRecipe.forgingLevelRequired;
-                  const isStageLocked = stageIndex < def.requiredStage;
-                  const isSelected = selectedForge === def.id;
-
-                  const currentEquipped = equipment.equipped[def.slot];
-                  const isAlreadyEquipped = currentEquipped?.defId === def.id;
-
-                  return (
-                    <div key={def.id}>
-                      <button
-                        onClick={() => setSelectedForge(isSelected ? null : def.id)}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
-                          isLevelLocked || isStageLocked
-                            ? 'border-slate-700 bg-slate-800/50 opacity-50 cursor-not-allowed'
-                            : isSelected
-                            ? 'border-amber-500/50 bg-amber-500/10'
-                            : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{def.icon}</span>
-                            <div>
-                              <div className="text-sm font-medium text-slate-200">{def.name}</div>
-                              <div className="text-xs text-slate-500">{def.description}</div>
-                            </div>
-                          </div>
-                          <div className="text-right text-xs">
-                            <div className="text-slate-500">{getSlotLabel(def.slot)}</div>
-                            {isAlreadyEquipped && <div className="text-amber-400">已装备</div>}
-                          </div>
-                        </div>
-                        {(isLevelLocked || isStageLocked) && (
-                          <div className="text-xs text-red-400 mt-1">
-                            {isStageLocked ? `需要境界 ${def.requiredStage + 1}` : `需要炼器 Lv.${def.forgingRecipe.forgingLevelRequired}`}
-                          </div>
-                        )}
-                      </button>
-
-                      {isSelected && !isLevelLocked && !isStageLocked && (
-                        <div className="ml-4 mt-2 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700">
-                          <div className="text-xs text-slate-400">所需材料:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {def.forgingRecipe.ingredients.map((ing, i) => {
-                              const item = getItem(ing.itemId);
-                              const have = inventory.items[ing.itemId] ?? 0;
-                              const enough = have >= ing.quantity;
-                              return (
-                                <span key={i} className={`text-xs px-2 py-0.5 rounded ${enough ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'}`}>
-                                  {item?.name ?? ing.itemId} {have}/{ing.quantity}
-                                </span>
-                              );
-                            })}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            灵石: <span className={spiritStones >= def.forgingRecipe.spiritStones ? 'text-amber-300' : 'text-red-400'}>
-                              <NumberDisplay value={def.forgingRecipe.spiritStones} />
-                            </span>
-                          </div>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => forgeEquipment(def.id)}
-                            disabled={!isForgeAvailable}
-                            className="w-full"
-                          >
-                            {isAlreadyEquipped ? '🔨 重新炼制（覆盖）' : '🔨 炼制'}
-                          </Button>
-                        </div>
-                      )}
+              return (
+                <button
+                  key={slot}
+                  onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
+                  className={`p-2 rounded-lg border text-center transition-colors cursor-pointer min-h-[80px] flex flex-col items-center justify-center ${
+                    isSelected
+                      ? 'border-amber-500/50 bg-amber-500/10'
+                      : instance
+                      ? 'border-slate-500 bg-slate-800'
+                      : 'border-slate-700 bg-slate-800/50'
+                  }`}
+                >
+                  <div className="text-lg">{def ? def.icon : icon}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{label}</div>
+                  {def && instance ? (
+                    <div className="text-xs text-amber-400 mt-0.5 truncate w-full">
+                      {def.name}{instance.level > 0 ? ` +${instance.level}` : ''}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  ) : (
+                    <div className="text-xs text-slate-600 mt-0.5">空</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* ─── Enhance Sub-tab ────────────────────────────────────── */}
-          {equipAction === 'enhance' && (
-            <div className="space-y-3">
-              <div className="text-sm text-slate-400">选择要强化的装备:</div>
-              {EQUIPMENT_GRID.map(({ slot }) => {
-                const instance = equipment.equipped[slot];
-                if (!instance) return null;
-                const def = getEquipment(instance.defId);
-                if (!def) return null;
+          {/* Selected slot detail */}
+          {selectedGridSlot && (() => {
+            const instance = equipment.equipped[selectedGridSlot];
+            const def = instance ? getEquipment(instance.defId) : null;
 
-                const isMaxLevel = instance.level >= def.maxLevel;
-                const enhanceable = canEnhance(instance, inventory, spiritStones);
-                const cost = isMaxLevel ? 0 : getEnhanceCost(def, instance.level);
-                const materials = isMaxLevel ? [] : getEnhanceMaterials(def, instance.level);
-                const isSelected = selectedGridSlot === slot;
-
-                return (
-                  <div key={slot}>
-                    <button
-                      onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
-                      className="w-full text-left"
+            return (
+              <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 space-y-2">
+                <div className="text-sm text-slate-300 font-medium">{getSlotLabel(selectedGridSlot)}</div>
+                {def && instance ? (
+                  <>
+                    <EquipmentCard def={def} currentLevel={instance.level} />
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => { unequipItem(selectedGridSlot); setSelectedGridSlot(null); }}
+                      className="w-full"
                     >
-                      <EquipmentCard def={def} currentLevel={instance.level} />
-                    </button>
-
-                    {isSelected && (
-                      <div className="ml-4 mt-2 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700">
-                        {isMaxLevel ? (
-                          <div className="text-sm text-amber-400 text-center">✨ 已达最高强化等级</div>
-                        ) : (
-                          <>
-                            <div className="text-xs text-slate-400">
-                              强化 +{instance.level} → +{instance.level + 1}
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {materials.map((mat, i) => {
-                                const item = getItem(mat.itemId);
-                                const have = inventory.items[mat.itemId] ?? 0;
-                                const enough = have >= mat.quantity;
-                                return (
-                                  <span key={i} className={`text-xs px-2 py-0.5 rounded ${enough ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'}`}>
-                                    {item?.name ?? mat.itemId} {have}/{mat.quantity}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                            <div className="text-xs text-slate-400">
-                              灵石: <span className={spiritStones >= cost ? 'text-amber-300' : 'text-red-400'}>
-                                <NumberDisplay value={cost} />
-                              </span>
-                            </div>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => enhanceEquipment(slot)}
-                              disabled={!enhanceable}
-                              className="w-full"
-                            >
-                              ⬆️ 强化
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                      卸下装备
+                    </Button>
+                  </>
+                ) : (
+                  <div className="text-sm text-slate-600 text-center py-2">
+                    — 未装备 —<br />
+                    <span className="text-xs text-slate-500">去炼器页面制造装备</span>
                   </div>
-                );
-              })}
-              {!EQUIPMENT_GRID.some(s => equipment.equipped[s.slot]) && (
-                <div className="text-sm text-slate-600 text-center py-4">暂无装备可强化，请先去炼器</div>
-              )}
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Stats summary */}
+          <div className="bg-slate-800 rounded-lg p-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">已炼制装备</span>
+              <span className="text-amber-300">{equipment.totalForged}</span>
             </div>
-          )}
+          </div>
         </div>
       )}
 

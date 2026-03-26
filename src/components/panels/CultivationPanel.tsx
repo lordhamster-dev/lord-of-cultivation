@@ -142,27 +142,99 @@ export function CultivationPanel() {
         </div>
       </div>
 
-      {/* Meditation */}
-      <div className="bg-slate-800 rounded-lg p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-slate-300 font-semibold text-sm">🧘 打坐</h3>
-          {meditationActive && (
-            <span className="text-xs text-purple-300 animate-pulse">打坐中...</span>
-          )}
+      {/* Meditation + Breakthrough side by side */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Meditation */}
+        <div className="bg-slate-800 rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-slate-300 font-semibold text-sm">🧘 打坐</h3>
+            {meditationActive && (
+              <span className="text-xs text-purple-300 animate-pulse">打坐中...</span>
+            )}
+          </div>
+          <div className="text-xs text-slate-400 space-y-1">
+            <p>• 打坐恢复灵力，灵力满后溢出部分转化为修炼经验</p>
+            <p>• 聚气丹和功法可以提升打坐效率</p>
+            <p>• 打坐时无法进行其他活动（种植除外）</p>
+          </div>
+          <Button
+            variant={meditationActive ? 'danger' : 'primary'}
+            onClick={() => meditationActive ? stopMeditation() : startMeditation()}
+            className="w-full"
+            disabled={!meditationActive && !canStartMeditation}
+          >
+            {meditationActive ? '⏹ 停止打坐' : canStartMeditation ? '🧘 开始打坐' : '当前有其他活动进行中'}
+          </Button>
         </div>
-        <div className="text-xs text-slate-400 space-y-1">
-          <p>• 打坐恢复灵力，灵力满后溢出部分转化为修炼经验</p>
-          <p>• 聚气丹和功法可以提升打坐效率</p>
-          <p>• 打坐时无法进行其他活动（种植除外）</p>
-        </div>
-        <Button
-          variant={meditationActive ? 'danger' : 'primary'}
-          onClick={() => meditationActive ? stopMeditation() : startMeditation()}
-          className="w-full"
-          disabled={!meditationActive && !canStartMeditation}
-        >
-          {meditationActive ? '⏹ 停止打坐' : canStartMeditation ? '🧘 开始打坐' : '当前有其他活动进行中'}
-        </Button>
+
+        {/* Breakthrough */}
+        {!isMaxStage ? (
+          <div className="bg-slate-800 rounded-lg p-4 space-y-3">
+            <h3 className="text-slate-300 font-semibold">突破境界</h3>
+            {!atFinalSubStage && (
+              <p className="text-xs text-slate-400">
+                需修炼至 <span className="text-amber-300">{stage?.subStages[subStageCount - 1]?.name ?? '最终'}</span> 才可大突破
+              </p>
+            )}
+            <p className="text-slate-400 text-sm">
+              下一境界: <span className="text-amber-300">{nextStage?.name}</span>
+              {nextStage?.realmName !== stage?.realmName && (
+                <span className="text-purple-300 ml-1">({nextStage?.realmName})</span>
+              )}
+            </p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400">需要灵石:</span>
+              <span className={spiritStones >= breakthroughCost ? 'text-amber-300' : 'text-red-400'}>
+                <NumberDisplay value={breakthroughCost} /> / {spiritStones.toLocaleString()}
+              </span>
+            </div>
+            {/* Pill discount info */}
+            {pillItem && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">💊 {pillItem.name}:</span>
+                {hasPill ? (
+                  <span className="text-green-400">
+                    已持有 (灵石消耗 -{(nextStage.breakPillDiscount * 100).toFixed(0)}%)
+                    {hasPill && nextStage.breakPillDiscount > 0 && (
+                      <span className="text-slate-500 line-through ml-1">
+                        <NumberDisplay value={breakthroughCostWithoutPill} />
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">未持有 (可减少{(nextStage.breakPillDiscount * 100).toFixed(0)}%灵石)</span>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400">修炼进度:</span>
+              <span className={progress >= 100 ? 'text-green-400' : 'text-slate-400'}>
+                {progress.toFixed(1)}% {progress >= 100 ? '✓' : ''}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-400">子境界:</span>
+              <span className={atFinalSubStage ? 'text-green-400' : 'text-slate-400'}>
+                {subStageIndex + 1}/{subStageCount} {atFinalSubStage ? '✓' : ''}
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => breakthrough()}
+              disabled={!canBreakthrough}
+              className="w-full"
+            >
+              {canBreakthrough ? '⚡ 突破！' : '条件未满足'}
+            </Button>
+          </div>
+        ) : (
+          <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-amber-400 font-bold text-lg">🏆 已达最高境界</div>
+              <div className="text-slate-400 text-sm mt-1">道祖圆满，大道唯一</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Techniques */}
@@ -223,74 +295,6 @@ export function CultivationPanel() {
         )}
       </div>
 
-      {/* Breakthrough section */}
-      {!isMaxStage && (
-        <div className="bg-slate-800 rounded-lg p-4 space-y-3">
-          <h3 className="text-slate-300 font-semibold">突破境界</h3>
-          {!atFinalSubStage && (
-            <p className="text-xs text-slate-400">
-              需修炼至 <span className="text-amber-300">{stage?.subStages[subStageCount - 1]?.name ?? '最终'}</span> 才可大突破
-            </p>
-          )}
-          <p className="text-slate-400 text-sm">
-            下一境界: <span className="text-amber-300">{nextStage?.name}</span>
-            {nextStage?.realmName !== stage?.realmName && (
-              <span className="text-purple-300 ml-1">({nextStage?.realmName})</span>
-            )}
-          </p>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">需要灵石:</span>
-            <span className={spiritStones >= breakthroughCost ? 'text-amber-300' : 'text-red-400'}>
-              <NumberDisplay value={breakthroughCost} /> / {spiritStones.toLocaleString()}
-            </span>
-          </div>
-          {/* Pill discount info */}
-          {pillItem && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-400">💊 {pillItem.name}:</span>
-              {hasPill ? (
-                <span className="text-green-400">
-                  已持有 (灵石消耗 -{(nextStage.breakPillDiscount * 100).toFixed(0)}%)
-                  {hasPill && nextStage.breakPillDiscount > 0 && (
-                    <span className="text-slate-500 line-through ml-1">
-                      <NumberDisplay value={breakthroughCostWithoutPill} />
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="text-slate-500">未持有 (可减少{(nextStage.breakPillDiscount * 100).toFixed(0)}%灵石)</span>
-              )}
-            </div>
-          )}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">修炼进度:</span>
-            <span className={progress >= 100 ? 'text-green-400' : 'text-slate-400'}>
-              {progress.toFixed(1)}% {progress >= 100 ? '✓' : ''}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">子境界:</span>
-            <span className={atFinalSubStage ? 'text-green-400' : 'text-slate-400'}>
-              {subStageIndex + 1}/{subStageCount} {atFinalSubStage ? '✓' : ''}
-            </span>
-          </div>
-          <Button
-            variant="primary"
-            onClick={() => breakthrough()}
-            disabled={!canBreakthrough}
-            className="w-full"
-          >
-            {canBreakthrough ? '⚡ 突破！' : '条件未满足'}
-          </Button>
-        </div>
-      )}
-
-      {isMaxStage && (
-        <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 text-center">
-          <div className="text-amber-400 font-bold text-lg">🏆 已达最高境界</div>
-          <div className="text-slate-400 text-sm mt-1">道祖圆满，大道唯一</div>
-        </div>
-      )}
     </div>
   );
 }

@@ -7,9 +7,10 @@ import { HERBS, PLOT_UNLOCK_COSTS } from '../../core/data/herbs';
 import { getGrowthProgress } from '../../core/systems/HerbSystem';
 import type { HerbPlot } from '../../core/types';
 
-function PlotCard({ plot, farmingLevel, onPlant, onHarvest, onUnlock, plotIndex }: {
+function PlotCard({ plot, farmingLevel, inventoryItems, onPlant, onHarvest, onUnlock, plotIndex }: {
   plot: HerbPlot;
   farmingLevel: number;
+  inventoryItems: Record<string, number>;
   onPlant: (plotId: string, herbId: string) => void;
   onHarvest: (plotId: string) => void;
   onUnlock: (index: number) => void;
@@ -65,7 +66,9 @@ function PlotCard({ plot, farmingLevel, onPlant, onHarvest, onUnlock, plotIndex 
 
   // Empty plot
   if (selecting) {
-    const availableHerbs = HERBS.filter(h => h.farmingLevelRequired <= farmingLevel);
+    const availableHerbs = HERBS.filter(h =>
+      h.farmingLevelRequired <= farmingLevel || (inventoryItems[h.seedItemId] ?? 0) > 0
+    );
     return (
       <div className="bg-slate-800 border border-amber-600/40 rounded-lg p-3 flex flex-col gap-2 min-h-[120px]">
         <div className="text-xs text-slate-400 mb-1">选择种子:</div>
@@ -101,6 +104,7 @@ function PlotCard({ plot, farmingLevel, onPlant, onHarvest, onUnlock, plotIndex 
 export function HerbPanel() {
   const herbPlots = useGameStore(s => s.herbPlots);
   const skills = useGameStore(s => s.skills);
+  const inventory = useGameStore(s => s.inventory);
   const plantHerb = useGameStore(s => s.plantHerb);
   const harvestHerb = useGameStore(s => s.harvestHerb);
   const unlockHerbPlot = useGameStore(s => s.unlockHerbPlot);
@@ -120,6 +124,7 @@ export function HerbPanel() {
             plot={plot}
             plotIndex={i}
             farmingLevel={skills.farming.level}
+            inventoryItems={inventory.items}
             onPlant={plantHerb}
             onHarvest={harvestHerb}
             onUnlock={unlockHerbPlot}
