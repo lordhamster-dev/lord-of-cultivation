@@ -1,5 +1,5 @@
 import Decimal from 'break_eternity.js';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 // ─── Sub-stage definition ────────────────────────────────────────────────────
 export interface SubStage {
@@ -20,9 +20,16 @@ export interface CultivationStage {
   breakPillDiscount: number; // 0-1, e.g. 0.5 = 50% cost reduction when pill is used
   subStages: SubStage[];
 }
-export interface UpgradeDef { id: string; name: string; description: string; baseCost: number; costMultiplier: number; effect: (level: number) => number; maxLevel?: number; }
-export interface ResourceState { spiritStones: string; exp: string; spiritStonesPerSec: number; expPerSec: number; spirit: number; spiritMax: number; spiritPerSec: number; }
+export interface ResourceState { exp: string; spirit: number; spiritMax: number; spiritPerSec: number; }
 export interface CultivationState { stageIndex: number; subStageIndex: number; progress: number; totalAscensions: number; activeTechniqueId: string | null; }
+
+// ─── Activity types (only one active at a time, except herb growth) ─────────
+export type ActivityType = 'meditation' | 'fishing' | 'alchemy' | 'combat' | 'dungeon' | null;
+
+// ─── Meditation state ───────────────────────────────────────────────────────
+export interface MeditationState {
+  isActive: boolean;
+}
 
 export interface ItemStack {
   itemId: string;
@@ -81,7 +88,6 @@ export interface DailyQuestState {
   date: string;               // YYYY-MM-DD
   quests: QuestProgress[];    // today's active quests
   dailySpiritStonesEarned: number; // for spiritStones quest tracking
-  dailyUpgradesBought: number;     // for upgrade quest tracking
 }
 
 // ─── Combat types ─────────────────────────────────────────────────────────────
@@ -145,7 +151,8 @@ export interface GameStats {
 export interface GameState {
   resources: ResourceState;
   cultivation: CultivationState;
-  upgrades: Record<string, number>;
+  activeActivity: ActivityType;
+  meditation: MeditationState;
   lastSaveTime: number;
   lastTickTime: number;
   version: number;
@@ -164,6 +171,6 @@ export interface GameState {
 }
 
 export interface SettingsState { theme: 'dark' | 'light'; offlineCapHours: number; autoSaveInterval: number; showNotifications: boolean; }
-export interface GameEventMap { 'tick': { deltaMs: number }; 'breakthrough': { newStageIndex: number; stageName: string }; 'upgrade:purchased': { id: string; level: number }; 'save:completed': { timestamp: number }; 'offline:applied': { elapsedMs: number; spiritStones: string; exp: string }; }
+export interface GameEventMap { 'tick': { deltaMs: number }; 'breakthrough': { newStageIndex: number; stageName: string }; 'save:completed': { timestamp: number }; }
 export function newDecimal(value: number | string): Decimal { return new Decimal(value); }
 export function decimalToString(d: Decimal): string { return d.toString(); }

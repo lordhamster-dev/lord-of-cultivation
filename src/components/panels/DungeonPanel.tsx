@@ -7,7 +7,8 @@ import { getPlayerCombatStats } from '../../core/systems/CombatSystem';
 
 export function DungeonPanel() {
   const dungeon = useGameStore(s => s.dungeon);
-  const combat = useGameStore(s => s.combat);
+  const activeActivity = useGameStore(s => s.activeActivity);
+  const spirit = useGameStore(s => s.resources.spirit);
   const stageIndex = useGameStore(s => s.cultivation.stageIndex);
   const skills = useGameStore(s => s.skills);
   const equipment = useGameStore(s => s.equipment);
@@ -72,7 +73,7 @@ export function DungeonPanel() {
             {DUNGEONS.map(d => {
               const unlocked = stageIndex >= d.requiredStage;
               const runsToday = dungeon.dailyRuns[d.id] ?? 0;
-              const canEnter = unlocked && runsToday < d.maxDailyRuns && !combat.isActive;
+              const canEnter = unlocked && runsToday < d.maxDailyRuns && activeActivity === null && spirit > 0;
 
               return (
                 <div
@@ -103,7 +104,7 @@ export function DungeonPanel() {
                         onClick={() => startDungeon(d.id)}
                         disabled={!canEnter}
                       >
-                        {runsToday >= d.maxDailyRuns ? '次数用完' : combat.isActive ? '战斗中' : '挑战'}
+                        {runsToday >= d.maxDailyRuns ? '次数用完' : activeActivity !== null ? '有活动进行中' : spirit <= 0 ? '灵力不足' : '挑战'}
                       </Button>
                     )}
                   </div>

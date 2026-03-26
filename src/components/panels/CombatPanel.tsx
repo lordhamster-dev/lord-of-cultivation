@@ -12,7 +12,8 @@ export function CombatPanel() {
   const skills = useGameStore(s => s.skills);
   const stageIndex = useGameStore(s => s.cultivation.stageIndex);
   const equipment = useGameStore(s => s.equipment);
-  const dungeon = useGameStore(s => s.dungeon);
+  const activeActivity = useGameStore(s => s.activeActivity);
+  const spirit = useGameStore(s => s.resources.spirit);
   const startCombat = useGameStore(s => s.startCombat);
   const stopCombat = useGameStore(s => s.stopCombat);
   const combatLevel = skills.combat.level;
@@ -107,9 +108,9 @@ export function CombatPanel() {
             variant="primary"
             onClick={() => startCombat(selectedArea)}
             className="w-full"
-            disabled={dungeon.isActive || !COMBAT_AREAS.find(a => a.id === selectedArea && stageIndex >= a.requiredStage)}
+            disabled={activeActivity !== null || spirit <= 0 || !COMBAT_AREAS.find(a => a.id === selectedArea && stageIndex >= a.requiredStage)}
           >
-            {dungeon.isActive ? '副本进行中...' : '⚔️ 开始战斗'}
+            {activeActivity !== null && activeActivity !== 'combat' ? '有其他活动进行中' : spirit <= 0 ? '灵力不足' : '⚔️ 开始战斗'}
           </Button>
         </div>
       ) : (

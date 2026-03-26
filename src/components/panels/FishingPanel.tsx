@@ -10,6 +10,7 @@ import { getItem } from '../../core/data/items';
 export function FishingPanel() {
   const fishing = useGameStore(s => s.fishing);
   const skills = useGameStore(s => s.skills);
+  const activeActivity = useGameStore(s => s.activeActivity);
   const startFishing = useGameStore(s => s.startFishing);
   const stopFishing = useGameStore(s => s.stopFishing);
   const fishingLevel = skills.fishing.level;
@@ -76,8 +77,9 @@ export function FishingPanel() {
               variant="primary"
               onClick={() => startFishing(selectedArea)}
               className="w-full"
+              disabled={activeActivity !== null}
             >
-              开始钓鱼
+              {activeActivity !== null ? '有其他活动进行中' : '开始钓鱼'}
             </Button>
           )}
         </div>

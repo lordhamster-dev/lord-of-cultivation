@@ -13,6 +13,7 @@ export function AlchemyPanel() {
   const skills = useGameStore(s => s.skills);
   const inventory = useGameStore(s => s.inventory);
   const cultivation = useGameStore(s => s.cultivation);
+  const activeActivity = useGameStore(s => s.activeActivity);
   const startAlchemy = useGameStore(s => s.startAlchemy);
   const stopAlchemy = useGameStore(s => s.stopAlchemy);
   const alchemyLevel = skills.alchemy.level;
@@ -122,9 +123,9 @@ export function AlchemyPanel() {
                 variant="primary"
                 onClick={() => startAlchemy(selected.id)}
                 className="w-full mt-2"
-                disabled={alchemyLevel < selected.alchemyLevelRequired || !canCraft(selected, inventory)}
+                disabled={activeActivity !== null || alchemyLevel < selected.alchemyLevelRequired || !canCraft(selected, inventory)}
               >
-                开始炼制
+                {activeActivity !== null ? '有其他活动进行中' : '开始炼制'}
               </Button>
             </div>
           )}

@@ -59,11 +59,6 @@ export function QuestPanel() {
               {/* Rewards */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-500">奖励:</span>
-                {def.reward.spiritStones && (
-                  <span className="text-xs bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded">
-                    💎 +{def.reward.spiritStones} 灵石
-                  </span>
-                )}
                 {def.reward.items?.map(item => {
                   const itemDef = getItem(item.itemId);
                   return (

@@ -1,5 +1,4 @@
-import Decimal from 'break_eternity.js';
-import { useGameStore, selectStage, selectBreakthroughCost, selectBreakthroughCostWithoutPill, selectHasBreakthroughPill, selectIsAtFinalSubStage } from '../../store/gameStore';
+import { useGameStore, selectStage, selectBreakthroughCost, selectBreakthroughCostWithoutPill, selectHasBreakthroughPill, selectIsAtFinalSubStage, selectSpiritStones } from '../../store/gameStore';
 import { STAGES, getFullStageName, getSubStageCount } from '../../core/data/stages';
 import { TECHNIQUES } from '../../core/data/techniques';
 import { getItem } from '../../core/data/items';
@@ -20,34 +19,39 @@ export function CultivationPanel() {
   const stageIndex = useGameStore((s) => s.cultivation.stageIndex);
   const subStageIndex = useGameStore((s) => s.cultivation.subStageIndex);
   const progress = useGameStore((s) => s.cultivation.progress);
-  const spiritStones = useGameStore((s) => s.resources.spiritStones);
+  const spiritStones = useGameStore(selectSpiritStones);
   const spirit = useGameStore((s) => s.resources.spirit);
   const spiritMax = useGameStore((s) => s.resources.spiritMax);
   const spiritPerSec = useGameStore((s) => s.resources.spiritPerSec);
   const activeTechniqueId = useGameStore((s) => s.cultivation.activeTechniqueId);
+  const activeActivity = useGameStore((s) => s.activeActivity);
+  const meditationActive = useGameStore((s) => s.meditation.isActive);
   const breakthroughCost = useGameStore(selectBreakthroughCost);
   const breakthroughCostWithoutPill = useGameStore(selectBreakthroughCostWithoutPill);
   const hasPill = useGameStore(selectHasBreakthroughPill);
   const atFinalSubStage = useGameStore(selectIsAtFinalSubStage);
   const breakthrough = useGameStore((s) => s.breakthrough);
   const activateTechnique = useGameStore((s) => s.activateTechnique);
+  const startMeditation = useGameStore((s) => s.startMeditation);
+  const stopMeditation = useGameStore((s) => s.stopMeditation);
+  const exp = useGameStore((s) => s.resources.exp);
 
   const subStageCount = getSubStageCount(stageIndex);
 
   const canBreakthrough =
     progress >= 100 &&
     atFinalSubStage &&
-    new Decimal(spiritStones).gte(breakthroughCost) &&
+    spiritStones >= breakthroughCost &&
     stageIndex < STAGES.length - 1;
 
   const isMaxStage = stageIndex >= STAGES.length - 1;
   const fullStageName = getFullStageName(stageIndex, subStageIndex);
 
-  const availableTechniques = TECHNIQUES.filter(t => t.requiredStage <= stageIndex);
-
   // Get next stage pill info
   const nextStage = STAGES[stageIndex + 1];
   const pillItem = nextStage?.breakPillId ? getItem(nextStage.breakPillId) : null;
+
+  const canStartMeditation = activeActivity === null;
 
   return (
     <div className="p-4 space-y-6">
@@ -99,7 +103,10 @@ export function CultivationPanel() {
           </div>
           <div className="text-right">
             <div className="text-slate-300 text-sm">
-              倍率: <span className="text-amber-300">×{stage?.multiplier.toLocaleString()}</span>
+              💎 灵石: <span className="text-amber-300">{spiritStones.toLocaleString()}</span>
+            </div>
+            <div className="text-slate-300 text-sm">
+              ✨ 经验: <span className="text-blue-300"><NumberDisplay value={exp} /></span>
             </div>
           </div>
         </div>
@@ -131,16 +138,39 @@ export function CultivationPanel() {
         </div>
         <ProgressBar value={(spirit / spiritMax) * 100} color="bg-purple-500" />
         <div className="text-xs text-slate-500 text-right">
-          {spiritPerSec >= 0 ? `+${spiritPerSec.toFixed(1)}/秒` : `${spiritPerSec.toFixed(1)}/秒`}
+          基础恢复: +{spiritPerSec.toFixed(1)}/秒
         </div>
+      </div>
+
+      {/* Meditation */}
+      <div className="bg-slate-800 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-slate-300 font-semibold text-sm">🧘 打坐</h3>
+          {meditationActive && (
+            <span className="text-xs text-purple-300 animate-pulse">打坐中...</span>
+          )}
+        </div>
+        <div className="text-xs text-slate-400 space-y-1">
+          <p>• 打坐恢复灵力，灵力满后溢出部分转化为修炼经验</p>
+          <p>• 聚气丹和功法可以提升打坐效率</p>
+          <p>• 打坐时无法进行其他活动（种植除外）</p>
+        </div>
+        <Button
+          variant={meditationActive ? 'danger' : 'primary'}
+          onClick={() => meditationActive ? stopMeditation() : startMeditation()}
+          className="w-full"
+          disabled={!meditationActive && !canStartMeditation}
+        >
+          {meditationActive ? '⏹ 停止打坐' : canStartMeditation ? '🧘 开始打坐' : '当前有其他活动进行中'}
+        </Button>
       </div>
 
       {/* Techniques */}
       <div className="bg-slate-800 rounded-lg p-4 space-y-3">
-        <h3 className="text-slate-300 font-semibold text-sm">功法修炼</h3>
-        {availableTechniques.length === 0 ? (
-          <div className="text-slate-500 text-xs">达到筑基后可修炼更多功法</div>
-        ) : null}
+        <h3 className="text-slate-300 font-semibold text-sm">功法</h3>
+        <div className="text-xs text-slate-400 mb-2">
+          功法可在打坐时提升灵力恢复效率
+        </div>
         <div className="space-y-2">
           {TECHNIQUES.map(tech => {
             const isLocked = tech.requiredStage > stageIndex;
@@ -170,21 +200,13 @@ export function CultivationPanel() {
                       className={`ml-2 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer ${
                         isActive
                           ? 'bg-red-800/60 text-red-300 hover:bg-red-700/60'
-                          : spirit <= 0
-                          ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
                           : 'bg-purple-700/60 text-purple-200 hover:bg-purple-600/60'
                       }`}
-                      disabled={!isActive && spirit <= 0}
                     >
-                      {isActive ? '停止' : '修炼'}
+                      {isActive ? '停用' : '启用'}
                     </button>
                   )}
                 </div>
-                {!isLocked && (
-                  <div className="text-xs text-slate-500 mt-1">
-                    消耗: {tech.spiritCostPerSec}/秒灵力
-                  </div>
-                )}
                 {isLocked && (
                   <div className="text-xs text-slate-500 mt-1">
                     需要境界: {STAGES[tech.requiredStage]?.name ?? ''}
@@ -196,7 +218,7 @@ export function CultivationPanel() {
         </div>
         {activeTechniqueId && (
           <div className="text-center text-xs text-purple-300">
-            ✨ 正在修炼：{TECHNIQUES.find(t => t.id === activeTechniqueId)?.name}
+            ✨ 当前功法：{TECHNIQUES.find(t => t.id === activeTechniqueId)?.name}
           </div>
         )}
       </div>
@@ -218,8 +240,8 @@ export function CultivationPanel() {
           </p>
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-400">需要灵石:</span>
-            <span className={new Decimal(spiritStones).gte(breakthroughCost) ? 'text-amber-300' : 'text-red-400'}>
-              <NumberDisplay value={breakthroughCost} /> / <NumberDisplay value={spiritStones} />
+            <span className={spiritStones >= breakthroughCost ? 'text-amber-300' : 'text-red-400'}>
+              <NumberDisplay value={breakthroughCost} /> / {spiritStones.toLocaleString()}
             </span>
           </div>
           {/* Pill discount info */}

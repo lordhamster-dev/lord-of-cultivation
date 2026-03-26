@@ -1,5 +1,5 @@
 export interface TechniqueEffect {
-  type: 'spiritStones' | 'exp' | 'fishing' | 'farming' | 'alchemy';
+  type: 'spiritStones' | 'exp' | 'fishing' | 'farming' | 'alchemy' | 'meditation';
   multiplier: number; // e.g., 1.2 = +20% bonus
 }
 
@@ -18,21 +18,20 @@ export const TECHNIQUES: TechniqueDef[] = [
   {
     id: 'basic_circulation',
     name: '基础吐纳诀',
-    description: '最基础的修炼功法，灵石产出+20%',
+    description: '最基础的修炼功法，打坐灵力恢复+20%',
     icon: '🌀',
-    spiritCostPerSec: 0.5,
-    effects: [{ type: 'spiritStones', multiplier: 1.2 }],
+    spiritCostPerSec: 0,
+    effects: [{ type: 'meditation', multiplier: 1.2 }],
     requiredStage: 0,
   },
   {
     id: 'spirit_gathering_art',
     name: '聚灵诀',
-    description: '专注于聚集灵气，灵石产出+50%，修炼经验+20%',
+    description: '专注于聚集灵气，打坐灵力恢复+50%',
     icon: '💫',
-    spiritCostPerSec: 2,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 1.5 },
-      { type: 'exp', multiplier: 1.2 },
+      { type: 'meditation', multiplier: 1.5 },
     ],
     requiredStage: 0,
   },
@@ -41,7 +40,7 @@ export const TECHNIQUES: TechniqueDef[] = [
     name: '五行归元诀',
     description: '融合五行灵气，所有生活技能效率+30%',
     icon: '☯️',
-    spiritCostPerSec: 5,
+    spiritCostPerSec: 0,
     effects: [
       { type: 'fishing', multiplier: 1.3 },
       { type: 'farming', multiplier: 1.3 },
@@ -52,24 +51,22 @@ export const TECHNIQUES: TechniqueDef[] = [
   {
     id: 'golden_core_art',
     name: '金丹真诀',
-    description: '金丹期专属功法，灵石产出+100%，修炼经验+50%',
+    description: '金丹期专属功法，打坐灵力恢复+100%',
     icon: '🌟',
-    spiritCostPerSec: 10,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 2.0 },
-      { type: 'exp', multiplier: 1.5 },
+      { type: 'meditation', multiplier: 2.0 },
     ],
     requiredStage: 2, // 金丹
   },
   {
     id: 'nascent_soul_art',
     name: '元婴化形诀',
-    description: '元婴期功法，一切产出+80%',
+    description: '元婴期功法，打坐灵力恢复+80%，所有生活技能效率+80%',
     icon: '👁️',
-    spiritCostPerSec: 20,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 1.8 },
-      { type: 'exp', multiplier: 1.8 },
+      { type: 'meditation', multiplier: 1.8 },
       { type: 'fishing', multiplier: 1.8 },
       { type: 'farming', multiplier: 1.8 },
       { type: 'alchemy', multiplier: 1.8 },
@@ -79,24 +76,22 @@ export const TECHNIQUES: TechniqueDef[] = [
   {
     id: 'god_transform_art',
     name: '化神天诀',
-    description: '化神期功法，感知天地元气，灵石产出+150%，修炼经验+100%',
+    description: '化神期功法，感知天地元气，打坐灵力恢复+150%',
     icon: '⚡',
-    spiritCostPerSec: 40,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 2.5 },
-      { type: 'exp', multiplier: 2.0 },
+      { type: 'meditation', multiplier: 2.5 },
     ],
     requiredStage: 4, // 化神
   },
   {
     id: 'void_refining_art',
     name: '炼虚归元诀',
-    description: '炼虚期功法，元神化虚，一切产出+150%',
+    description: '炼虚期功法，元神化虚，打坐灵力恢复+150%，所有生活技能效率+150%',
     icon: '🌌',
-    spiritCostPerSec: 80,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 2.5 },
-      { type: 'exp', multiplier: 2.5 },
+      { type: 'meditation', multiplier: 2.5 },
       { type: 'fishing', multiplier: 2.5 },
       { type: 'farming', multiplier: 2.5 },
       { type: 'alchemy', multiplier: 2.5 },
@@ -106,24 +101,22 @@ export const TECHNIQUES: TechniqueDef[] = [
   {
     id: 'mahayana_art',
     name: '大乘无极诀',
-    description: '大乘期功法，三阳灌体，灵石产出+300%，修炼经验+200%',
+    description: '大乘期功法，三阳灌体，打坐灵力恢复+300%',
     icon: '☀️',
-    spiritCostPerSec: 200,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 4.0 },
-      { type: 'exp', multiplier: 3.0 },
+      { type: 'meditation', multiplier: 4.0 },
     ],
     requiredStage: 7, // 大乘
   },
   {
     id: 'true_immortal_art',
     name: '真仙法则诀',
-    description: '真仙境功法，领悟法则之力，一切产出+300%',
+    description: '真仙境功法，领悟法则之力，打坐灵力恢复+300%，所有生活技能效率+300%',
     icon: '🌟',
-    spiritCostPerSec: 500,
+    spiritCostPerSec: 0,
     effects: [
-      { type: 'spiritStones', multiplier: 4.0 },
-      { type: 'exp', multiplier: 4.0 },
+      { type: 'meditation', multiplier: 4.0 },
       { type: 'fishing', multiplier: 4.0 },
       { type: 'farming', multiplier: 4.0 },
       { type: 'alchemy', multiplier: 4.0 },

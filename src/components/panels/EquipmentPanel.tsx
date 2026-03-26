@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGameStore } from '../../store/gameStore';
+import { useGameStore, selectSpiritStones } from '../../store/gameStore';
 import { SkillBar } from '../ui/SkillBar';
 import { Button } from '../ui/Button';
 import { NumberDisplay } from '../ui/NumberDisplay';
@@ -8,7 +8,6 @@ import type { EquipmentDef } from '../../core/data/equipment';
 import { canForge, canEnhance } from '../../core/systems/EquipmentSystem';
 import { getItem } from '../../core/data/items';
 import type { EquipmentSlotId } from '../../core/types';
-import Decimal from 'break_eternity.js';
 
 function StatDisplay({ label, value }: { label: string; value: number | undefined }) {
   if (!value) return null;
@@ -46,8 +45,7 @@ function EquipmentCard({ def, isEquipped, currentLevel }: { def: EquipmentDef; i
         <StatDisplay label="⚔️攻击" value={stats.attack} />
         <StatDisplay label="🛡️防御" value={stats.defense} />
         <StatDisplay label="❤️生命" value={stats.hp} />
-        <StatDisplay label="💎灵石" value={stats.spiritStonesPercent} />
-        <StatDisplay label="✨经验" value={stats.expPercent} />
+        <StatDisplay label="🧘打坐" value={stats.meditationPercent} />
       </div>
     </div>
   );
@@ -59,7 +57,7 @@ export function EquipmentPanel() {
   const skills = useGameStore(s => s.skills);
   const equipment = useGameStore(s => s.equipment);
   const inventory = useGameStore(s => s.inventory);
-  const spiritStones = useGameStore(s => s.resources.spiritStones);
+  const spiritStones = useGameStore(selectSpiritStones);
   const stageIndex = useGameStore(s => s.cultivation.stageIndex);
   const forgeEquipment = useGameStore(s => s.forgeEquipment);
   const enhanceEquipment = useGameStore(s => s.enhanceEquipment);
@@ -112,7 +110,7 @@ export function EquipmentPanel() {
           <div className="text-sm text-slate-400">选择要炼制的装备:</div>
           <div className="space-y-2">
             {EQUIPMENT.map(def => {
-              const isForgeAvailable = canForge(def, inventory, parseFloat(spiritStones), forgingLevel, stageIndex);
+              const isForgeAvailable = canForge(def, inventory, spiritStones, forgingLevel, stageIndex);
               const isLevelLocked = forgingLevel < def.forgingRecipe.forgingLevelRequired;
               const isStageLocked = stageIndex < def.requiredStage;
               const isSelected = selectedForge === def.id;
@@ -174,7 +172,7 @@ export function EquipmentPanel() {
                         })}
                       </div>
                       <div className="text-xs text-slate-400">
-                        灵石: <span className={new Decimal(spiritStones).gte(def.forgingRecipe.spiritStones) ? 'text-amber-300' : 'text-red-400'}>
+                        灵石: <span className={spiritStones >= def.forgingRecipe.spiritStones ? 'text-amber-300' : 'text-red-400'}>
                           <NumberDisplay value={def.forgingRecipe.spiritStones} />
                         </span>
                       </div>
@@ -227,7 +225,7 @@ export function EquipmentPanel() {
             if (!def) return null;
 
             const isMaxLevel = instance.level >= def.maxLevel;
-            const enhanceable = canEnhance(instance, inventory, parseFloat(spiritStones));
+            const enhanceable = canEnhance(instance, inventory, spiritStones);
             const cost = isMaxLevel ? 0 : getEnhanceCost(def, instance.level);
             const materials = isMaxLevel ? [] : getEnhanceMaterials(def, instance.level);
             const isSelected = selectedSlot === slot;
@@ -263,7 +261,7 @@ export function EquipmentPanel() {
                           })}
                         </div>
                         <div className="text-xs text-slate-400">
-                          灵石: <span className={new Decimal(spiritStones).gte(cost) ? 'text-amber-300' : 'text-red-400'}>
+                          灵石: <span className={spiritStones >= cost ? 'text-amber-300' : 'text-red-400'}>
                             <NumberDisplay value={cost} />
                           </span>
                         </div>

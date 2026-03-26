@@ -4,8 +4,7 @@ export interface EquipmentStatBonus {
   attack?: number;
   defense?: number;
   hp?: number;
-  spiritStonesPercent?: number;  // e.g., 0.1 = +10%
-  expPercent?: number;           // e.g., 0.05 = +5%
+  meditationPercent?: number;  // e.g., 0.1 = +10% meditation efficiency
 }
 
 export interface EquipmentDef {
@@ -174,8 +173,8 @@ export const EQUIPMENT: EquipmentDef[] = [
     description: '提升灵石产出的灵气法器',
     icon: '📿',
     slot: 'accessory',
-    baseStats: { spiritStonesPercent: 0.05 },
-    enhancePerLevel: { spiritStonesPercent: 0.02 },
+    baseStats: { meditationPercent: 0.05 },
+    enhancePerLevel: { meditationPercent: 0.02 },
     maxLevel: 10,
     requiredStage: 0,
     forgingRecipe: {
@@ -191,8 +190,8 @@ export const EQUIPMENT: EquipmentDef[] = [
     description: '以妖核为核心的指环，提升各项属性',
     icon: '💍',
     slot: 'accessory',
-    baseStats: { attack: 10, defense: 10, spiritStonesPercent: 0.08, expPercent: 0.05 },
-    enhancePerLevel: { attack: 3, defense: 3, spiritStonesPercent: 0.02, expPercent: 0.01 },
+    baseStats: { attack: 10, defense: 10, meditationPercent: 0.08 },
+    enhancePerLevel: { attack: 3, defense: 3, meditationPercent: 0.02 },
     maxLevel: 10,
     requiredStage: 1,
     forgingRecipe: {
@@ -208,8 +207,8 @@ export const EQUIPMENT: EquipmentDef[] = [
     description: '虚空之力凝聚，全方位提升修士实力',
     icon: '🔮',
     slot: 'accessory',
-    baseStats: { attack: 50, defense: 30, hp: 200, spiritStonesPercent: 0.15, expPercent: 0.1 },
-    enhancePerLevel: { attack: 10, defense: 8, hp: 50, spiritStonesPercent: 0.03, expPercent: 0.02 },
+    baseStats: { attack: 50, defense: 30, hp: 200, meditationPercent: 0.15 },
+    enhancePerLevel: { attack: 10, defense: 8, hp: 50, meditationPercent: 0.03 },
     maxLevel: 10,
     requiredStage: 3,
     forgingRecipe: {
