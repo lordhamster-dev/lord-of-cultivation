@@ -74,9 +74,9 @@ export function EquipmentPanel() {
   ];
 
   const equippedSlots: { slot: EquipmentSlotId; label: string; icon: string }[] = [
-    { slot: 'weapon', label: '武器', icon: '🗡️' },
-    { slot: 'armor', label: '防具', icon: '🛡️' },
-    { slot: 'accessory', label: '法器', icon: '📿' },
+    { slot: 'glove_left', label: '左手', icon: '🧤' },
+    { slot: 'armor', label: '盔甲', icon: '🛡️' },
+    { slot: 'necklace', label: '项链', icon: '📿' },
   ];
 
   return (
@@ -141,7 +141,7 @@ export function EquipmentPanel() {
                       </div>
                       <div className="text-right text-xs">
                         <div className="text-slate-500">
-                          {def.slot === 'weapon' ? '武器' : def.slot === 'armor' ? '防具' : '法器'}
+                          {def.slot === 'armor' ? '盔甲' : def.slot === 'glove_left' || def.slot === 'glove_right' ? '手套' : def.slot}
                         </div>
                         {isAlreadyEquipped && (
                           <div className="text-amber-400">已装备</div>
