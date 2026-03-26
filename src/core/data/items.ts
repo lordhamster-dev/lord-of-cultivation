@@ -56,3 +56,25 @@ export const ITEMS: ItemDef[] = [
 export function getItem(id: string): ItemDef | undefined {
   return ITEMS.find(i => i.id === id);
 }
+
+// ─── Pill combat effects (HP/spirit recovery % per use during combat) ─────────
+export interface PillCombatEffect {
+  hpRecovery: number;      // fraction of maxHp to restore (e.g. 0.20 = 20%)
+  spiritRecovery: number;  // fraction of spiritMax to restore (e.g. 0.30 = 30%)
+}
+
+export const PILL_COMBAT_EFFECTS: Record<string, PillCombatEffect> = {
+  gathering_pill:      { hpRecovery: 0.05, spiritRecovery: 0.30 },
+  foundation_pill:     { hpRecovery: 0.15, spiritRecovery: 0.05 },
+  core_formation_pill: { hpRecovery: 0.20, spiritRecovery: 0.10 },
+  nascent_soul_pill:   { hpRecovery: 0.25, spiritRecovery: 0.15 },
+  god_transform_pill:  { hpRecovery: 0.30, spiritRecovery: 0.20 },
+  void_refining_pill:  { hpRecovery: 0.35, spiritRecovery: 0.25 },
+  body_integration_pill: { hpRecovery: 0.40, spiritRecovery: 0.30 },
+  mahayana_pill:       { hpRecovery: 0.50, spiritRecovery: 0.40 },
+  true_immortal_pill:  { hpRecovery: 0.60, spiritRecovery: 0.50 },
+  golden_immortal_pill:{ hpRecovery: 0.70, spiritRecovery: 0.60 },
+  taiyi_pill:          { hpRecovery: 0.80, spiritRecovery: 0.70 },
+  daluo_pill:          { hpRecovery: 0.90, spiritRecovery: 0.80 },
+  dao_ancestor_pill:   { hpRecovery: 1.00, spiritRecovery: 1.00 },
+};

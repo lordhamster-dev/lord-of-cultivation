@@ -46,15 +46,13 @@ export function forgeEquipment(
     newItems[ing.itemId] = (newItems[ing.itemId] ?? 0) - ing.quantity;
   }
 
-  // Equip immediately to the slot
-  const newEquipped = { ...equipment.equipped };
-  newEquipped[def.slot] = { defId: equipDefId, level: 0 };
+  // Add forged item to inventory (instead of equipping directly)
+  newItems[equipDefId] = (newItems[equipDefId] ?? 0) + 1;
 
   return {
     success: true,
     equipment: {
       ...equipment,
-      equipped: newEquipped,
       totalForged: equipment.totalForged + 1,
     },
     inventory: { ...inventory, items: newItems },

@@ -74,7 +74,7 @@ export function FishingPanel() {
       ) : (
         <div className="space-y-3">
           <div className="text-sm text-slate-400">选择钓鱼地点:</div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {FISHING_AREAS.map(area => {
               const unlocked = area.requiredLevel <= fishingLevel;
               const isSelected = selectedArea === area.id;
@@ -90,18 +90,16 @@ export function FishingPanel() {
                         : 'border-slate-600 bg-slate-800 hover:border-slate-500'
                     }`}
                   >
-                    <div className="flex justify-between">
-                      <span className="font-medium text-slate-200">{area.name}</span>
-                      {!unlocked
-                        ? <span className="text-xs text-slate-500">需要 Lv.{area.requiredLevel}</span>
-                        : <span className="text-xs text-slate-500">{isSelected ? '▲' : '▼'}</span>
-                      }
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">{area.description}</div>
+                    <div className="font-medium text-xs text-slate-200">{area.name}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{area.description}</div>
+                    {!unlocked
+                      ? <div className="text-xs text-slate-500 mt-0.5">需要 Lv.{area.requiredLevel}</div>
+                      : <div className="text-xs text-slate-500 mt-0.5">{area.fish.filter(f => f.minLevel <= fishingLevel).length} 种鱼</div>
+                    }
                   </button>
 
                   {isSelected && unlocked && (
-                    <div className="ml-4 mt-1 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700">
+                    <div className="mt-1 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700">
                       <div className="text-xs text-slate-400">可钓鱼类:</div>
                       <div className="flex flex-wrap gap-1">
                         {area.fish.filter(f => f.minLevel <= fishingLevel).map(f => (

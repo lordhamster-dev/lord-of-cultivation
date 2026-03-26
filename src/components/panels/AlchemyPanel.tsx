@@ -57,7 +57,7 @@ export function AlchemyPanel() {
       ) : (
         <div className="space-y-3">
           <div className="text-sm text-slate-400">选择丹方:</div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {ALCHEMY_RECIPES.map(recipe => {
               const locked = alchemyLevel < recipe.alchemyLevelRequired
                 || cultivation.stageIndex < recipe.cultivationStageRequired;
@@ -75,26 +75,26 @@ export function AlchemyPanel() {
                         : 'border-slate-600 bg-slate-800 hover:border-slate-500'
                     }`}
                   >
-                    <div className="flex justify-between">
-                      <span className={`font-medium ${locked ? 'text-slate-500' : 'text-slate-200'}`}>
+                    <div className="font-medium text-xs">
+                      <span className={locked ? 'text-slate-500' : 'text-slate-200'}>
                         💊 {recipe.name}
                       </span>
-                      {locked ? (
-                        <span className="text-xs text-slate-500">
-                          需要: 炼丹 Lv.{recipe.alchemyLevelRequired}
-                          {recipe.cultivationStageRequired > 0 && ` / ${STAGES[recipe.cultivationStageRequired]?.name ?? ''}`}
-                        </span>
-                      ) : (
-                        <span className={`text-xs ${craftable ? 'text-green-400' : 'text-red-400'}`}>
-                          {craftable ? '可炼制' : '材料不足'}
-                        </span>
-                      )}
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">{recipe.description}</div>
+                    <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{recipe.description}</div>
+                    {locked ? (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        需Lv.{recipe.alchemyLevelRequired}
+                        {recipe.cultivationStageRequired > 0 && ` / ${STAGES[recipe.cultivationStageRequired]?.name ?? ''}`}
+                      </div>
+                    ) : (
+                      <div className={`text-xs mt-0.5 ${craftable ? 'text-green-400' : 'text-red-400'}`}>
+                        {craftable ? '可炼制' : '材料不足'}
+                      </div>
+                    )}
                   </button>
 
                   {isSelected && !locked && (
-                    <div className="ml-4 mt-1 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700">
+                    <div className="mt-1 bg-slate-800/50 rounded-lg p-3 space-y-2 border border-slate-700 col-span-2">
                       <div className="space-y-1">
                         <div className="text-xs text-slate-400">所需材料:</div>
                         {recipe.ingredients.map(ing => {

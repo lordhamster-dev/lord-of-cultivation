@@ -9,10 +9,9 @@ import { STAGES } from '../../core/data/stages';
 import { getEquipment, getEquipmentTotalStats } from '../../core/data/equipment';
 import type { EquipmentDef } from '../../core/data/equipment';
 import { getPlayerCombatStats } from '../../core/systems/CombatSystem';
-import { getItem } from '../../core/data/items';
+import { getItem, ITEMS, PILL_COMBAT_EFFECTS } from '../../core/data/items';
 import type { EquipmentSlotId } from '../../core/types';
 
-type PlayerTab = 'stats' | 'equipment' | 'supply';
 type BottomTab = 'combat' | 'dungeon';
 
 // ─── 9-Grid Equipment Slot Definitions ──────────────────────────────────────
@@ -65,17 +64,6 @@ function EquipmentCard({ def, currentLevel }: { def: EquipmentDef; currentLevel:
   );
 }
 
-const HP_RECOVERY_ITEMS = [
-  { id: 'golden_lotus', name: '金莲子' },
-  { id: 'moon_flower', name: '月华花' },
-  { id: 'fire_herb', name: '火灵草' },
-  { id: 'spirit_grass', name: '灵草' },
-];
-
-const SPIRIT_RECOVERY_ITEMS = [
-  { id: 'gathering_pill', name: '聚气丹' },
-];
-
 export function BattlePanel() {
   // ── Store subscriptions ────────────────────────────────────────────────────
   const combat = useGameStore(s => s.combat);
@@ -94,55 +82,49 @@ export function BattlePanel() {
   const stopCombat = useGameStore(s => s.stopCombat);
   const startDungeon = useGameStore(s => s.startDungeon);
   const unequipItem = useGameStore(s => s.unequipItem);
+  const equipFromInventory = useGameStore(s => s.equipFromInventory);
   const updateCombatSupplyConfig = useGameStore(s => s.updateCombatSupplyConfig);
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [playerTab, setPlayerTab] = useState<PlayerTab>('stats');
   const [bottomTab, setBottomTab] = useState<BottomTab>('combat');
   const [selectedArea, setSelectedArea] = useState(COMBAT_AREAS[0].id);
   const [selectedGridSlot, setSelectedGridSlot] = useState<EquipmentSlotId | null>(null);
-  const [repeatCount, setRepeatCount] = useState(1);      // 0 = infinite
+  const [repeatCount, setRepeatCount] = useState(1);
   const [repeatInput, setRepeatInput] = useState('1');
   const [, forceUpdate] = useState(0);
 
-  // ── Auto-repeat refs (avoid stale closures in effect) ─────────────────────
+  // ── Auto-repeat refs ───────────────────────────────────────────────────────
   const prevCombatActive = useRef(false);
-  const autoRepeatRef = useRef(false);        // are we in auto-repeat mode?
-  const remainingRef = useRef(0);             // -1 = infinite, >=0 = fixed
+  const autoRepeatRef = useRef(false);
+  const remainingRef = useRef(0);
   const selectedAreaRef = useRef(selectedArea);
-  const [repeatStatus, setRepeatStatus] = useState('');  // display string
+  const [repeatStatus, setRepeatStatus] = useState('');
 
   useEffect(() => { selectedAreaRef.current = selectedArea; }, [selectedArea]);
 
-  // 200ms tick for live HP/SP bars
   useEffect(() => {
     const id = setInterval(() => forceUpdate(n => n + 1), 200);
     return () => clearInterval(id);
   }, []);
 
-  // Auto-repeat: when combat ends (true→false), restart if repeats remain
   useEffect(() => {
     const wasActive = prevCombatActive.current;
     prevCombatActive.current = combat.isActive;
     if (!wasActive || combat.isActive) return;
     if (!autoRepeatRef.current) return;
-
     if (combat.lastCombatResult === 'defeat') {
       autoRepeatRef.current = false;
       setRepeatStatus('');
       return;
     }
-
     const rem = remainingRef.current;
     if (rem === -1) {
-      // Infinite — restart
       startCombat(selectedAreaRef.current);
     } else if (rem > 0) {
       remainingRef.current = rem - 1;
       setRepeatStatus(`剩余 ${rem - 1} 次`);
       startCombat(selectedAreaRef.current);
     } else {
-      // rem === 0, last battle finished
       autoRepeatRef.current = false;
       setRepeatStatus('');
     }
@@ -151,15 +133,12 @@ export function BattlePanel() {
   // ── Derived values ─────────────────────────────────────────────────────────
   const combatLevel = skills.combat.level;
   const playerStats = getPlayerCombatStats(stageIndex, equipment, combatLevel);
-
   const isInCombat = combat.isActive;
   const isInDungeon = dungeon.isActive;
-
   const currentPlayerHp = isInCombat ? combat.playerHp : isInDungeon ? dungeon.playerHp : playerStats.maxHp;
   const playerHpPct = playerStats.maxHp > 0 ? (currentPlayerHp / playerStats.maxHp) * 100 : 0;
   const spiritPct = spiritMax > 0 ? (spirit / spiritMax) * 100 : 0;
 
-  // Current enemy info
   const activeArea = combat.currentAreaId ? COMBAT_AREAS.find(a => a.id === combat.currentAreaId) : null;
   const activeDungeon = dungeon.currentDungeonId ? getDungeon(dungeon.currentDungeonId) : null;
 
@@ -192,6 +171,25 @@ export function BattlePanel() {
       const boss = d.floors.find(f => f.boss)?.boss ?? null;
       return { dungeonId: d.id, boss };
     }), []);
+
+  // Pills with combat effects in inventory
+  const inventoryPills = useMemo(() =>
+    ITEMS
+      .filter(item => item.category === 'pill' && PILL_COMBAT_EFFECTS[item.id])
+      .map(item => ({
+        ...item,
+        qty: inventory.items[item.id] ?? 0,
+        effects: PILL_COMBAT_EFFECTS[item.id]!,
+      }))
+      .filter(p => p.qty > 0),
+    [inventory.items]);
+
+  // Equipment items stored in inventory
+  const inventoryEquipment = useMemo(() =>
+    Object.entries(inventory.items)
+      .filter(([id, qty]) => qty > 0 && !!getEquipment(id))
+      .map(([id, qty]) => ({ def: getEquipment(id)!, qty })),
+    [inventory.items]);
 
   function handleStartCombat() {
     const area = COMBAT_AREAS.find(a => a.id === selectedArea);
@@ -226,39 +224,42 @@ export function BattlePanel() {
   return (
     <div className="p-4 space-y-3">
 
-      {/* ── Row 1: Title ───────────────────────────────────────────────────── */}
+      {/* Title */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-amber-400">⚔️ 战斗</h2>
         <div className="flex items-center gap-2">
           {repeatStatus && <span className="text-xs text-amber-300">{repeatStatus}</span>}
-          {isInCombat && (
-            <Button variant="danger" size="sm" onClick={handleStop}>停止战斗</Button>
-          )}
-          {isInDungeon && (
-            <span className="text-xs text-red-400 bg-red-900/30 px-2 py-1 rounded">副本进行中</span>
-          )}
+          {isInCombat && <Button variant="danger" size="sm" onClick={handleStop}>停止战斗</Button>}
+          {isInDungeon && <span className="text-xs text-red-400 bg-red-900/30 px-2 py-1 rounded">副本进行中</span>}
         </div>
       </div>
 
-      {/* ── Row 2: Skill bar ───────────────────────────────────────────────── */}
+      {/* Skill bar */}
       <div className="bg-slate-800 rounded-lg p-3">
         <SkillBar skillName="战斗" skill={skills.combat} icon="⚔️" />
       </div>
 
-      {/* ── Row 3: Player (left) | Enemy (right) ──────────────────────────── */}
+      {/* Player (left) | Enemy (right) */}
       <div className="grid grid-cols-2 gap-3">
 
-        {/* ─ Left column: Player ─────────────────────────────────────────── */}
+        {/* ─ Player column ─────────────────────────────────────────────────── */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">修士</div>
 
-          {/* HP bar */}
+          {/* Player identity */}
+          <div className="bg-slate-800 rounded-lg p-2 text-center">
+            <div className="text-2xl">🧘</div>
+            <div className="text-sm font-medium text-blue-300 mt-0.5 leading-tight">
+              {STAGES[stageIndex]?.name ?? '修士'}
+            </div>
+          </div>
+
+          {/* HP bar — always red */}
           <div className="space-y-0.5">
             <div className="flex justify-between text-xs">
-              <span className="text-green-400">❤️ 生命</span>
+              <span className="text-red-400">❤️ 生命</span>
               <span className="text-slate-300">{Math.floor(currentPlayerHp)}/{playerStats.maxHp}</span>
             </div>
-            <ProgressBar value={playerHpPct} color={playerHpPct < 30 ? 'bg-red-500' : 'bg-green-500'} />
+            <ProgressBar value={playerHpPct} color="bg-red-500" />
           </div>
 
           {/* Spirit bar */}
@@ -270,188 +271,177 @@ export function BattlePanel() {
             <ProgressBar value={spiritPct} color="bg-purple-500" />
           </div>
 
-          {/* Supply usage indicator */}
-          {(isInCombat || isInDungeon) && (combatSupply.hpItemsUsed > 0 || combatSupply.spiritItemsUsed > 0) && (
-            <div className="text-xs text-slate-500">
-              补给: {combatSupply.hpItemsUsed > 0 && `❤️×${combatSupply.hpItemsUsed} `}
-              {combatSupply.spiritItemsUsed > 0 && `✨×${combatSupply.spiritItemsUsed}`}
-            </div>
-          )}
+          {/* Supply (pills only) */}
+          <div className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+            <div className="text-xs font-medium text-amber-400">🎒 战斗补给</div>
 
-          {/* Inner tabs: 属性 / 装备 / 补给 */}
-          <div className="flex gap-1">
-            {(['stats', 'equipment', 'supply'] as PlayerTab[]).map(tab => {
-              const label = tab === 'stats' ? '📊 属性' : tab === 'equipment' ? '🛡️ 装备' : '🎒 补给';
-              return (
-                <button key={tab} onClick={() => setPlayerTab(tab)}
-                  className={`flex-1 py-1 rounded text-xs transition-colors cursor-pointer ${
-                    playerTab === tab
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                      : 'text-slate-400 border border-slate-600 hover:text-slate-200'
-                  }`}
-                >{label}</button>
-              );
-            })}
+            {/* HP pill */}
+            <div className="space-y-1">
+              <div className="text-xs text-red-400">❤️ 回血</div>
+              <select
+                value={combatSupply.config.hpItemId ?? ''}
+                onChange={e => updateCombatSupplyConfig({ hpItemId: e.target.value || null })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-1.5 py-0.5 text-slate-200 text-xs"
+              >
+                <option value="">不使用</option>
+                {inventoryPills.filter(p => p.effects.hpRecovery > 0).map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}({p.qty}) +{Math.round(p.effects.hpRecovery * 100)}%HP
+                  </option>
+                ))}
+              </select>
+              {combatSupply.config.hpItemId && (
+                <div className="flex items-center gap-1 text-xs flex-wrap">
+                  <span className="text-slate-400">携带</span>
+                  <input type="number" min={1} max={99} value={combatSupply.config.hpItemCount}
+                    onChange={e => updateCombatSupplyConfig({ hpItemCount: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
+                    className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
+                  />
+                  <span className="text-slate-400">低于</span>
+                  <input type="number" min={5} max={95} value={combatSupply.config.hpThreshold}
+                    onChange={e => updateCombatSupplyConfig({ hpThreshold: Math.max(5, Math.min(95, parseInt(e.target.value) || 30)) })}
+                    className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
+                  />
+                  <span className="text-slate-400">%用</span>
+                </div>
+              )}
+            </div>
+
+            {/* Spirit pill */}
+            <div className="space-y-1">
+              <div className="text-xs text-purple-400">✨ 回灵</div>
+              <select
+                value={combatSupply.config.spiritItemId ?? ''}
+                onChange={e => updateCombatSupplyConfig({ spiritItemId: e.target.value || null })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-1.5 py-0.5 text-slate-200 text-xs"
+              >
+                <option value="">不使用</option>
+                {inventoryPills.filter(p => p.effects.spiritRecovery > 0).map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}({p.qty}) +{Math.round(p.effects.spiritRecovery * 100)}%灵
+                  </option>
+                ))}
+              </select>
+              {combatSupply.config.spiritItemId && (
+                <div className="flex items-center gap-1 text-xs flex-wrap">
+                  <span className="text-slate-400">携带</span>
+                  <input type="number" min={1} max={99} value={combatSupply.config.spiritItemCount}
+                    onChange={e => updateCombatSupplyConfig({ spiritItemCount: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
+                    className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
+                  />
+                  <span className="text-slate-400">低于</span>
+                  <input type="number" min={5} max={95} value={combatSupply.config.spiritThreshold}
+                    onChange={e => updateCombatSupplyConfig({ spiritThreshold: Math.max(5, Math.min(95, parseInt(e.target.value) || 30)) })}
+                    className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
+                  />
+                  <span className="text-slate-400">%用</span>
+                </div>
+              )}
+            </div>
+
+            {(isInCombat || isInDungeon) && (combatSupply.hpItemsUsed > 0 || combatSupply.spiritItemsUsed > 0) && (
+              <div className="text-xs text-slate-500">
+                已用: {combatSupply.hpItemsUsed > 0 && `❤️×${combatSupply.hpItemsUsed} `}
+                {combatSupply.spiritItemsUsed > 0 && `✨×${combatSupply.spiritItemsUsed}`}
+              </div>
+            )}
           </div>
 
-          {/* Tab content */}
-          <div className="min-h-[140px]">
-
-            {/* 属性 */}
-            {playerTab === 'stats' && (
-              <div className="bg-slate-800 rounded-lg p-2 space-y-1">
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-red-400">⚔️ 攻击</span><span className="text-slate-200 font-semibold">{playerStats.attack}</span></div>
-                  <div className="flex justify-between"><span className="text-blue-400">🛡️ 防御</span><span className="text-slate-200 font-semibold">{playerStats.defense}</span></div>
-                  <div className="flex justify-between"><span className="text-green-400">❤️ 上限</span><span className="text-slate-200 font-semibold">{playerStats.maxHp}</span></div>
-                  <div className="flex justify-between"><span className="text-amber-400">🏆 击杀</span><span className="text-slate-200 font-semibold">{combat.totalKills}</span></div>
-                </div>
-                {isInCombat && combat.loot.length > 0 && (
-                  <div className="pt-1 border-t border-slate-700">
-                    <div className="text-xs text-slate-500 mb-0.5">最近掉落:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {combat.loot.map((item, idx) => {
-                        const def = getItem(item.itemId);
-                        return (
-                          <span key={idx} className="text-xs bg-amber-900/30 px-1.5 py-0.5 rounded text-amber-300">
-                            {def?.name ?? item.itemId} ×{item.quantity}
-                          </span>
-                        );
-                      })}
+          {/* Equipment 9-grid */}
+          <div className="space-y-1">
+            <div className="text-xs text-slate-400 font-medium">🛡️ 装备</div>
+            <div className="grid grid-cols-3 gap-1">
+              {EQUIPMENT_GRID.map(({ slot, label, icon }) => {
+                const instance = equipment.equipped[slot];
+                const def = instance ? getEquipment(instance.defId) : null;
+                const isSelected = selectedGridSlot === slot;
+                return (
+                  <button key={slot} onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
+                    className={`p-1 rounded-lg border text-center transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[52px] ${
+                      isSelected ? 'border-amber-500/50 bg-amber-500/10'
+                      : instance ? 'border-slate-500 bg-slate-800'
+                      : 'border-slate-700 bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="text-sm">{def ? def.icon : icon}</div>
+                    <div className="text-xs text-slate-400 leading-tight">{label}</div>
+                    {def && instance
+                      ? <div className="text-xs text-amber-400 leading-tight">+{instance.level}</div>
+                      : <div className="text-xs text-slate-600 leading-tight">空</div>
+                    }
+                  </button>
+                );
+              })}
+            </div>
+            {selectedGridSlot && (() => {
+              const instance = equipment.equipped[selectedGridSlot];
+              const def = instance ? getEquipment(instance.defId) : null;
+              const slotInventoryEquip = inventoryEquipment.filter(e => e.def.slot === selectedGridSlot);
+              return (
+                <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 space-y-1">
+                  {def && instance ? (
+                    <>
+                      <EquipmentCard def={def} currentLevel={instance.level} />
+                      <Button variant="danger" size="sm" className="w-full"
+                        onClick={() => { unequipItem(selectedGridSlot); setSelectedGridSlot(null); }}
+                      >卸下</Button>
+                    </>
+                  ) : (
+                    <div className="text-xs text-slate-500 text-center py-1">
+                      {getSlotLabel(selectedGridSlot)} — 未装备
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                  {slotInventoryEquip.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-slate-700">
+                      <div className="text-xs text-slate-400">背包中可装备:</div>
+                      {slotInventoryEquip.map(({ def: eDef, qty }) => (
+                        <div key={eDef.id} className="flex items-center justify-between gap-1">
+                          <span className="text-xs text-slate-300">{eDef.icon} {eDef.name} ×{qty}</span>
+                          <Button size="sm" variant="primary"
+                            onClick={() => { equipFromInventory(eDef.id); setSelectedGridSlot(null); }}
+                          >装备</Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
 
-            {/* 装备 */}
-            {playerTab === 'equipment' && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-3 gap-1">
-                  {EQUIPMENT_GRID.map(({ slot, label, icon }) => {
-                    const instance = equipment.equipped[slot];
-                    const def = instance ? getEquipment(instance.defId) : null;
-                    const isSelected = selectedGridSlot === slot;
+          {/* Stats */}
+          <div className="bg-slate-800 rounded-lg p-2">
+            <div className="text-xs text-slate-400 font-medium mb-1">📊 属性</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              <div className="flex justify-between"><span className="text-red-400">⚔️ 攻击</span><span className="text-slate-200 font-semibold">{playerStats.attack}</span></div>
+              <div className="flex justify-between"><span className="text-blue-400">🛡️ 防御</span><span className="text-slate-200 font-semibold">{playerStats.defense}</span></div>
+              <div className="flex justify-between"><span className="text-green-400">❤️ 上限</span><span className="text-slate-200 font-semibold">{playerStats.maxHp}</span></div>
+              <div className="flex justify-between"><span className="text-amber-400">🏆 击杀</span><span className="text-slate-200 font-semibold">{combat.totalKills}</span></div>
+            </div>
+            {isInCombat && combat.loot.length > 0 && (
+              <div className="pt-1 border-t border-slate-700 mt-1">
+                <div className="text-xs text-slate-500 mb-0.5">最近掉落:</div>
+                <div className="flex flex-wrap gap-1">
+                  {combat.loot.map((item, idx) => {
+                    const itemDef = getItem(item.itemId);
                     return (
-                      <button key={slot} onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
-                        className={`p-1 rounded-lg border text-center transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[56px] ${
-                          isSelected ? 'border-amber-500/50 bg-amber-500/10'
-                          : instance ? 'border-slate-500 bg-slate-800'
-                          : 'border-slate-700 bg-slate-800/50'
-                        }`}
-                      >
-                        <div className="text-sm">{def ? def.icon : icon}</div>
-                        <div className="text-xs text-slate-400 leading-tight">{label}</div>
-                        {def && instance
-                          ? <div className="text-xs text-amber-400 leading-tight">+{instance.level}</div>
-                          : <div className="text-xs text-slate-600 leading-tight">空</div>
-                        }
-                      </button>
+                      <span key={idx} className="text-xs bg-amber-900/30 px-1.5 py-0.5 rounded text-amber-300">
+                        {itemDef?.name ?? item.itemId} ×{item.quantity}
+                      </span>
                     );
                   })}
-                </div>
-                {selectedGridSlot && (() => {
-                  const instance = equipment.equipped[selectedGridSlot];
-                  const def = instance ? getEquipment(instance.defId) : null;
-                  return (
-                    <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 space-y-1">
-                      {def && instance ? (
-                        <>
-                          <EquipmentCard def={def} currentLevel={instance.level} />
-                          <Button variant="danger" size="sm" className="w-full"
-                            onClick={() => { unequipItem(selectedGridSlot); setSelectedGridSlot(null); }}
-                          >卸下</Button>
-                        </>
-                      ) : (
-                        <div className="text-xs text-slate-500 text-center py-2">
-                          {getSlotLabel(selectedGridSlot)} — 未装备
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* 补给 */}
-            {playerTab === 'supply' && (
-              <div className="space-y-2">
-                {/* HP */}
-                <div className="bg-slate-800 rounded-lg p-2 space-y-1.5">
-                  <div className="text-xs text-green-400 font-medium">❤️ 生命补给</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button onClick={() => updateCombatSupplyConfig({ hpItemId: null })}
-                      className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${combatSupply.config.hpItemId === null ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'text-slate-400 border border-slate-600'}`}
-                    >不用</button>
-                    {HP_RECOVERY_ITEMS.map(item => {
-                      const qty = inventory.items[item.id] ?? 0;
-                      return (
-                        <button key={item.id} onClick={() => updateCombatSupplyConfig({ hpItemId: item.id })} disabled={qty === 0}
-                          className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${combatSupply.config.hpItemId === item.id ? 'bg-green-500/20 text-green-400 border border-green-500/40' : qty > 0 ? 'text-slate-400 border border-slate-600 hover:text-slate-200' : 'text-slate-600 border border-slate-700 cursor-not-allowed'}`}
-                        >{item.name}({qty})</button>
-                      );
-                    })}
-                  </div>
-                  {combatSupply.config.hpItemId && (
-                    <div className="flex items-center gap-1 text-xs flex-wrap">
-                      <span className="text-slate-400">携带</span>
-                      <input type="number" min={1} max={99} value={combatSupply.config.hpItemCount}
-                        onChange={e => updateCombatSupplyConfig({ hpItemCount: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
-                      />
-                      <span className="text-slate-400">低于</span>
-                      <input type="number" min={5} max={95} value={combatSupply.config.hpThreshold}
-                        onChange={e => updateCombatSupplyConfig({ hpThreshold: Math.max(5, Math.min(95, parseInt(e.target.value) || 30)) })}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
-                      />
-                      <span className="text-slate-400">%使用</span>
-                    </div>
-                  )}
-                </div>
-                {/* Spirit */}
-                <div className="bg-slate-800 rounded-lg p-2 space-y-1.5">
-                  <div className="text-xs text-purple-400 font-medium">✨ 灵力补给</div>
-                  <div className="flex flex-wrap gap-1">
-                    <button onClick={() => updateCombatSupplyConfig({ spiritItemId: null })}
-                      className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${combatSupply.config.spiritItemId === null ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40' : 'text-slate-400 border border-slate-600'}`}
-                    >不用</button>
-                    {SPIRIT_RECOVERY_ITEMS.map(item => {
-                      const qty = inventory.items[item.id] ?? 0;
-                      return (
-                        <button key={item.id} onClick={() => updateCombatSupplyConfig({ spiritItemId: item.id })} disabled={qty === 0}
-                          className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${combatSupply.config.spiritItemId === item.id ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40' : qty > 0 ? 'text-slate-400 border border-slate-600 hover:text-slate-200' : 'text-slate-600 border border-slate-700 cursor-not-allowed'}`}
-                        >{item.name}({qty})</button>
-                      );
-                    })}
-                  </div>
-                  {combatSupply.config.spiritItemId && (
-                    <div className="flex items-center gap-1 text-xs flex-wrap">
-                      <span className="text-slate-400">携带</span>
-                      <input type="number" min={1} max={99} value={combatSupply.config.spiritItemCount}
-                        onChange={e => updateCombatSupplyConfig({ spiritItemCount: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
-                      />
-                      <span className="text-slate-400">低于</span>
-                      <input type="number" min={5} max={95} value={combatSupply.config.spiritThreshold}
-                        onChange={e => updateCombatSupplyConfig({ spiritThreshold: Math.max(5, Math.min(95, parseInt(e.target.value) || 30)) })}
-                        className="w-10 bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-slate-200 text-xs"
-                      />
-                      <span className="text-slate-400">%使用</span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* ─ Right column: Enemy ─────────────────────────────────────────── */}
+        {/* ─ Enemy column ──────────────────────────────────────────────────── */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">对战目标</div>
 
           {(isInCombat || isInDungeon) && currentEnemy ? (
             <>
-              {/* Enemy identity */}
               <div className="bg-slate-800 rounded-lg p-2 text-center">
                 <div className="text-2xl">{currentEnemy.icon}</div>
                 <div className="text-sm font-medium text-red-300 mt-0.5 leading-tight">
@@ -459,16 +449,13 @@ export function BattlePanel() {
                   {'isBoss' in currentEnemy && !!(currentEnemy as { isBoss?: boolean }).isBoss && <span className="text-amber-400 ml-1">🔥BOSS</span>}
                 </div>
                 {isInDungeon && activeDungeon && (
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {activeDungeon.icon} 第{dungeon.currentFloor}/{activeDungeon.floors.length}层
-                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">{activeDungeon.icon} 第{dungeon.currentFloor}/{activeDungeon.floors.length}层</div>
                 )}
                 {isInCombat && activeArea && (
                   <div className="text-xs text-slate-500 mt-0.5">{activeArea.icon} {activeArea.name}</div>
                 )}
               </div>
 
-              {/* Enemy HP */}
               <div className="space-y-0.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-red-400">❤️ 敌方HP</span>
@@ -477,7 +464,6 @@ export function BattlePanel() {
                 <ProgressBar value={enemyHpPct} color="bg-red-500" />
               </div>
 
-              {/* Dungeon floor progress */}
               {isInDungeon && activeDungeon && (
                 <div className="flex gap-0.5">
                   {activeDungeon.floors.map((_, i) => (
@@ -490,7 +476,6 @@ export function BattlePanel() {
                 </div>
               )}
 
-              {/* Enemy stats */}
               <div className="bg-slate-800 rounded-lg p-2">
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                   <div className="flex justify-between"><span className="text-red-400">⚔️ 攻击</span><span className="text-slate-300">{currentEnemy.attack}</span></div>
@@ -501,7 +486,7 @@ export function BattlePanel() {
               </div>
             </>
           ) : (
-            <div className="bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center min-h-[160px] text-center space-y-1 border border-slate-700">
+            <div className="bg-slate-800/50 rounded-lg p-4 flex flex-col items-center justify-center min-h-[120px] text-center space-y-1 border border-slate-700">
               {combat.lastCombatResult === 'defeat' ? (
                 <><div className="text-2xl">💀</div><div className="text-xs text-red-400">被击败了</div><div className="text-xs text-slate-500">提升境界或装备后再战</div></>
               ) : dungeon.playerHp === 0 && dungeon.currentDungeonId ? (
@@ -514,7 +499,7 @@ export function BattlePanel() {
         </div>
       </div>
 
-      {/* ── Row 4: Bottom tabs (战斗区域 / 副本) ──────────────────────────── */}
+      {/* Bottom tabs */}
       <div className="space-y-2">
         <div className="flex gap-1">
           {(['combat', 'dungeon'] as BottomTab[]).map(tab => {
@@ -531,16 +516,16 @@ export function BattlePanel() {
           })}
         </div>
 
-        {/* ─── 战斗区域 ──────────────────────────────────────────────── */}
+        {/* Combat areas — click to expand inline */}
         {bottomTab === 'combat' && (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              {COMBAT_AREAS.map(area => {
-                const unlocked = stageIndex >= area.requiredStage;
-                const isSelected = selectedArea === area.id;
-                const { dropMap } = combatAreaDropMaps.find(m => m.areaId === area.id)!;
-                return (
-                  <button key={area.id} onClick={() => unlocked && setSelectedArea(area.id)}
+          <div className="space-y-2">
+            {COMBAT_AREAS.map(area => {
+              const unlocked = stageIndex >= area.requiredStage;
+              const isSelected = selectedArea === area.id;
+              const { dropMap } = combatAreaDropMaps.find(m => m.areaId === area.id)!;
+              return (
+                <div key={area.id}>
+                  <button onClick={() => unlocked && setSelectedArea(area.id)}
                     className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
                       !unlocked ? 'border-slate-700 bg-slate-800/50 opacity-50 cursor-not-allowed'
                       : isSelected ? 'border-red-500/50 bg-red-500/10'
@@ -555,70 +540,70 @@ export function BattlePanel() {
                       }
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">{area.description}</div>
-                    {unlocked && (
-                      <div className="text-xs text-slate-500 mt-1">{area.enemies.map(e => `${e.icon}${e.name}`).join('、')}</div>
-                    )}
+                    {unlocked && <div className="text-xs text-slate-500 mt-1">{area.enemies.map(e => `${e.icon}${e.name}`).join('、')}</div>}
                     {unlocked && dropMap.size > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {Array.from(dropMap.entries()).map(([itemId, chance]) => {
-                          const def = getItem(itemId);
-                          return def ? (
+                          const itemDef = getItem(itemId);
+                          return itemDef ? (
                             <span key={itemId} className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400">
-                              {def.emoji}{def.name} {(chance * 100).toFixed(0)}%
+                              {itemDef.emoji}{itemDef.name} {(chance * 100).toFixed(0)}%
                             </span>
                           ) : null;
                         })}
                       </div>
                     )}
                   </button>
-                );
-              })}
-            </div>
 
-            {/* Battle count + start */}
-            <div className="bg-slate-800 rounded-lg p-3 space-y-2">
-              <div className="text-xs text-slate-400">战斗次数</div>
-              <div className="flex gap-1 flex-wrap items-center">
-                {[1, 5, 10, 20].map(n => (
-                  <button key={n} onClick={() => { setRepeatCount(n); setRepeatInput(String(n)); }}
-                    className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
-                      repeatCount === n ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'text-slate-400 border border-slate-600 hover:text-slate-200'
-                    }`}
-                  >{n}次</button>
-                ))}
-                <button onClick={() => { setRepeatCount(0); setRepeatInput('∞'); }}
-                  className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
-                    repeatCount === 0 ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'text-slate-400 border border-slate-600 hover:text-slate-200'
-                  }`}
-                >∞</button>
-                <input
-                  type="number" min={1}
-                  value={repeatInput === '∞' ? '' : repeatInput}
-                  placeholder="自定义"
-                  onChange={e => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val) && val >= 1) { setRepeatCount(val); setRepeatInput(String(val)); }
-                    else { setRepeatInput(e.target.value); }
-                  }}
-                  className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-0.5 text-slate-200 text-xs"
-                />
-              </div>
-              <Button variant="primary" className="w-full" onClick={handleStartCombat}
-                disabled={isInCombat || isInDungeon || !canStartCombat}
-              >
-                {isInDungeon ? '副本进行中'
-                  : isInCombat ? '战斗中...'
-                  : activeActivity !== null && activeActivity !== 'combat' ? '有活动进行中'
-                  : spirit <= 0 ? '灵力不足'
-                  : repeatCount === 0 ? '⚔️ 无限战斗'
-                  : repeatCount === 1 ? '⚔️ 战斗一次'
-                  : `⚔️ 战斗 ${repeatCount} 次`}
-              </Button>
-            </div>
+                  {/* Inline battle controls */}
+                  {isSelected && unlocked && (
+                    <div className="mt-1 bg-slate-800/60 rounded-lg p-3 border border-red-500/20 space-y-2">
+                      <div className="text-xs text-slate-400">战斗次数</div>
+                      <div className="flex gap-1 flex-wrap items-center">
+                        {[1, 5, 10, 20].map(n => (
+                          <button key={n} onClick={() => { setRepeatCount(n); setRepeatInput(String(n)); }}
+                            className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                              repeatCount === n ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'text-slate-400 border border-slate-600 hover:text-slate-200'
+                            }`}
+                          >{n}次</button>
+                        ))}
+                        <button onClick={() => { setRepeatCount(0); setRepeatInput('∞'); }}
+                          className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
+                            repeatCount === 0 ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'text-slate-400 border border-slate-600 hover:text-slate-200'
+                          }`}
+                        >∞</button>
+                        <input
+                          type="number" min={1}
+                          value={repeatInput === '∞' ? '' : repeatInput}
+                          placeholder="自定义"
+                          onChange={e => {
+                            const val = parseInt(e.target.value);
+                            if (!isNaN(val) && val >= 1) { setRepeatCount(val); setRepeatInput(String(val)); }
+                            else { setRepeatInput(e.target.value); }
+                          }}
+                          className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-0.5 text-slate-200 text-xs"
+                        />
+                      </div>
+                      <Button variant="primary" className="w-full" onClick={handleStartCombat}
+                        disabled={isInCombat || isInDungeon || !canStartCombat}
+                      >
+                        {isInDungeon ? '副本进行中'
+                          : isInCombat ? '战斗中...'
+                          : activeActivity !== null && activeActivity !== 'combat' ? '有活动进行中'
+                          : spirit <= 0 ? '灵力不足'
+                          : repeatCount === 0 ? '⚔️ 无限战斗'
+                          : repeatCount === 1 ? '⚔️ 战斗一次'
+                          : `⚔️ 战斗 ${repeatCount} 次`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* ─── 副本 ──────────────────────────────────────────────────── */}
+        {/* Dungeon */}
         {bottomTab === 'dungeon' && (
           <div className="space-y-3">
             <div className="flex justify-between text-xs text-slate-400">
@@ -638,9 +623,7 @@ export function BattlePanel() {
                         <div className="font-medium text-slate-200">{d.icon} {d.name}</div>
                         <div className="text-xs text-slate-500 mt-0.5">{d.description}</div>
                         {unlocked ? (
-                          <div className="text-xs text-slate-500 mt-1">
-                            {d.floors.length}层 | 今日剩余: {d.maxDailyRuns - runsToday}/{d.maxDailyRuns}
-                          </div>
+                          <div className="text-xs text-slate-500 mt-1">{d.floors.length}层 | 今日剩余: {d.maxDailyRuns - runsToday}/{d.maxDailyRuns}</div>
                         ) : (
                           <div className="text-xs text-red-400 mt-1">需要境界: {STAGES[d.requiredStage]?.name ?? d.requiredStage}</div>
                         )}
@@ -664,10 +647,10 @@ export function BattlePanel() {
                       <div className="mt-1 flex flex-wrap gap-1">
                         <span className="text-xs text-red-400">BOSS:</span>
                         {boss.drops.map(drop => {
-                          const def = getItem(drop.itemId);
-                          return def ? (
+                          const dropItem = getItem(drop.itemId);
+                          return dropItem ? (
                             <span key={drop.itemId} className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400">
-                              {def.emoji}{def.name} {(drop.chance * 100).toFixed(0)}%
+                              {dropItem.emoji}{dropItem.name} {(drop.chance * 100).toFixed(0)}%
                             </span>
                           ) : null;
                         })}

@@ -21,6 +21,7 @@ import { getRecipe } from '../core/data/recipes';
 import { getCombatArea } from '../core/data/enemies';
 import { getEquipment } from '../core/data/equipment';
 import { getItem } from '../core/data/items';
+import { PILL_COMBAT_EFFECTS } from '../core/data/items';
 import { SaveManager } from '../save/SaveManager';
 import type { GameState, EquipmentSlotId, ActivityType, CombatSupplyState } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
@@ -112,6 +113,7 @@ interface GameActions {
   forgeEquipment: (equipDefId: string) => boolean;
   enhanceEquipment: (slot: EquipmentSlotId) => boolean;
   unequipItem: (slot: EquipmentSlotId) => void;
+  equipFromInventory: (equipDefId: string) => boolean;
   updateCombatSupplyConfig: (config: Partial<import('../core/types').CombatSupplyConfig>) => void;
   startMeditation: () => void;
   stopMeditation: () => void;
@@ -217,8 +219,9 @@ export const useGameStore = create<GameStore>()(
                 const hpItemQty = state.inventory.items[supplyConfig.hpItemId] ?? 0;
                 if (hpItemQty > 0) {
                   state.inventory.items[supplyConfig.hpItemId] = hpItemQty - 1;
-                  // Heal 30% of max HP
-                  state.combat.playerHp = Math.min(combatPlayerStats.maxHp, state.combat.playerHp + combatPlayerStats.maxHp * 0.3);
+                  const pillEffect = PILL_COMBAT_EFFECTS[supplyConfig.hpItemId];
+                  const hpRestoreRatio = pillEffect ? pillEffect.hpRecovery : 0.30;
+                  state.combat.playerHp = Math.min(combatPlayerStats.maxHp, state.combat.playerHp + combatPlayerStats.maxHp * hpRestoreRatio);
                   state.combatSupply.hpItemsUsed += 1;
                 }
               }
@@ -231,8 +234,9 @@ export const useGameStore = create<GameStore>()(
                 const spiritItemQty = state.inventory.items[supplyConfig.spiritItemId] ?? 0;
                 if (spiritItemQty > 0) {
                   state.inventory.items[supplyConfig.spiritItemId] = spiritItemQty - 1;
-                  // Recover 30% of max spirit
-                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * 0.3);
+                  const pillEffect = PILL_COMBAT_EFFECTS[supplyConfig.spiritItemId];
+                  const spiritRestoreRatio = pillEffect ? pillEffect.spiritRecovery : 0.30;
+                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * spiritRestoreRatio);
                   state.combatSupply.spiritItemsUsed += 1;
                 }
               }
@@ -289,7 +293,9 @@ export const useGameStore = create<GameStore>()(
                 const qty = state.inventory.items[dConfig.hpItemId] ?? 0;
                 if (qty > 0) {
                   state.inventory.items[dConfig.hpItemId] = qty - 1;
-                  state.dungeon.playerHp = Math.min(dungeonPlayerStats.maxHp, state.dungeon.playerHp + dungeonPlayerStats.maxHp * 0.3);
+                  const pillEffect = PILL_COMBAT_EFFECTS[dConfig.hpItemId];
+                  const hpRestoreRatio = pillEffect ? pillEffect.hpRecovery : 0.30;
+                  state.dungeon.playerHp = Math.min(dungeonPlayerStats.maxHp, state.dungeon.playerHp + dungeonPlayerStats.maxHp * hpRestoreRatio);
                   state.combatSupply.hpItemsUsed += 1;
                 }
               }
@@ -302,7 +308,9 @@ export const useGameStore = create<GameStore>()(
                 const qty = state.inventory.items[dConfig.spiritItemId] ?? 0;
                 if (qty > 0) {
                   state.inventory.items[dConfig.spiritItemId] = qty - 1;
-                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * 0.3);
+                  const pillEffect = PILL_COMBAT_EFFECTS[dConfig.spiritItemId];
+                  const spiritRestoreRatio = pillEffect ? pillEffect.spiritRecovery : 0.30;
+                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * spiritRestoreRatio);
                   state.combatSupply.spiritItemsUsed += 1;
                 }
               }
@@ -713,8 +721,38 @@ export const useGameStore = create<GameStore>()(
 
     unequipItem(slot: EquipmentSlotId): void {
       set((draft) => {
-        delete draft.equipment.equipped[slot];
+        const instance = draft.equipment.equipped[slot];
+        if (instance) {
+          draft.inventory.items[instance.defId] = (draft.inventory.items[instance.defId] ?? 0) + 1;
+          delete draft.equipment.equipped[slot];
+        }
       });
+    },
+
+    equipFromInventory(equipDefId: string): boolean {
+      const state = get();
+      const def = getEquipment(equipDefId);
+      if (!def) return false;
+      const qty = state.inventory.items[equipDefId] ?? 0;
+      if (qty <= 0) return false;
+
+      set((draft) => {
+        // Return currently equipped item in that slot back to inventory
+        const current = draft.equipment.equipped[def.slot];
+        if (current) {
+          draft.inventory.items[current.defId] = (draft.inventory.items[current.defId] ?? 0) + 1;
+        }
+        // Equip the new item
+        draft.equipment.equipped[def.slot] = { defId: equipDefId, level: 0 };
+        // Remove from inventory
+        const newQty = (draft.inventory.items[equipDefId] ?? 0) - 1;
+        if (newQty <= 0) {
+          delete draft.inventory.items[equipDefId];
+        } else {
+          draft.inventory.items[equipDefId] = newQty;
+        }
+      });
+      return true;
     },
 
     updateCombatSupplyConfig(config: Partial<import('../core/types').CombatSupplyConfig>): void {
