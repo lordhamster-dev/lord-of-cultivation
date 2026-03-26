@@ -34,8 +34,19 @@ export const ITEMS: ItemDef[] = [
   { id: 'void_crystal', name: '虚空结晶', description: '虚空中凝聚的稀有晶体，高阶炼器材料', category: 'material', stackable: true },
   // Pills
   { id: 'gathering_pill', name: '聚气丹', description: '服用后灵石产出+50%，持续5分钟', category: 'pill', stackable: true },
-  { id: 'foundation_pill', name: '筑基丹', description: '降低筑基突破所需灵石50%', category: 'pill', stackable: true },
-  { id: 'golden_core_pill', name: '金丹', description: '降低金丹突破所需灵石60%', category: 'pill', stackable: true },
+  // Breakthrough pills (reduce spirit stone cost when breaking through)
+  { id: 'foundation_pill', name: '筑基丹', description: '突破筑基时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'core_formation_pill', name: '结丹丹', description: '突破结丹时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'nascent_soul_pill', name: '元婴丹', description: '突破元婴时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'god_transform_pill', name: '化神丹', description: '突破化神时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'void_refining_pill', name: '炼虚丹', description: '突破炼虚时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'body_integration_pill', name: '合体丹', description: '突破合体时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'mahayana_pill', name: '大乘丹', description: '突破大乘时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'true_immortal_pill', name: '真仙丹', description: '突破真仙时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'golden_immortal_pill', name: '金仙丹', description: '突破金仙时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'taiyi_pill', name: '太乙丹', description: '突破太乙时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'daluo_pill', name: '大罗丹', description: '突破大罗时消耗灵石减少50%', category: 'pill', stackable: true },
+  { id: 'dao_ancestor_pill', name: '道祖丹', description: '突破道祖时消耗灵石减少50%', category: 'pill', stackable: true },
 ];
 
 export function getItem(id: string): ItemDef | undefined {

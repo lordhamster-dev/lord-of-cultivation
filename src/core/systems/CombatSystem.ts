@@ -3,13 +3,24 @@ import { getCombatArea } from '../data/enemies';
 import type { EnemyDef, CombatAreaDef } from '../data/enemies';
 import { getEquipmentTotalStats } from '../data/equipment';
 
-/** Base stats by cultivation stage */
+/** Base stats by cultivation stage (13 stages) */
 const BASE_STATS_BY_STAGE: CombatStats[] = [
-  { attack: 10, defense: 5, hp: 100, maxHp: 100 },
-  { attack: 30, defense: 15, hp: 300, maxHp: 300 },
-  { attack: 100, defense: 50, hp: 1000, maxHp: 1000 },
-  { attack: 350, defense: 150, hp: 4000, maxHp: 4000 },
-  { attack: 1000, defense: 500, hp: 15000, maxHp: 15000 },
+  // 下境界
+  { attack: 10, defense: 5, hp: 100, maxHp: 100 },       // 炼气
+  { attack: 30, defense: 15, hp: 300, maxHp: 300 },       // 筑基
+  { attack: 100, defense: 50, hp: 1000, maxHp: 1000 },    // 结丹
+  { attack: 350, defense: 150, hp: 4000, maxHp: 4000 },   // 元婴
+  { attack: 1000, defense: 500, hp: 15000, maxHp: 15000 }, // 化神
+  // 中境界
+  { attack: 3000, defense: 1500, hp: 50000, maxHp: 50000 },     // 炼虚
+  { attack: 10000, defense: 5000, hp: 200000, maxHp: 200000 },  // 合体
+  { attack: 35000, defense: 15000, hp: 800000, maxHp: 800000 }, // 大乘
+  // 上境界
+  { attack: 100000, defense: 50000, hp: 3000000, maxHp: 3000000 },      // 真仙
+  { attack: 350000, defense: 150000, hp: 10000000, maxHp: 10000000 },   // 金仙
+  { attack: 1000000, defense: 500000, hp: 40000000, maxHp: 40000000 },  // 太乙
+  { attack: 3500000, defense: 1500000, hp: 150000000, maxHp: 150000000 }, // 大罗
+  { attack: 10000000, defense: 5000000, hp: 500000000, maxHp: 500000000 }, // 道祖
 ];
 
 /** Compute player combat stats from stage + equipment + combat skill */

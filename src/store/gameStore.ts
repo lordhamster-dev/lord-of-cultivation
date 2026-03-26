@@ -6,7 +6,7 @@ import { UPGRADES } from '../core/data/upgrades';
 import { getTechnique } from '../core/data/techniques';
 import { computeResourceGain, applyResourceGain } from '../core/systems/ResourceSystem';
 import { computeProductionRates, getUpgradeCost } from '../core/systems/ProductionSystem';
-import { attemptBreakthrough, computeProgressGain, getBreakthroughCost, tryAdvanceSubStage, isAtFinalSubStage } from '../core/systems/CultivationSystem';
+import { attemptBreakthrough, computeProgressGain, getBreakthroughCost, tryAdvanceSubStage, isAtFinalSubStage, hasBreakthroughPill } from '../core/systems/CultivationSystem';
 import { tickHerbGrowth, plantHerb as plantHerbSystem, harvestHerb as harvestHerbSystem } from '../core/systems/HerbSystem';
 import { tickFishing } from '../core/systems/FishingSystem';
 import { tickAlchemy, canCraft } from '../core/systems/AlchemySystem';
@@ -269,15 +269,24 @@ export const useGameStore = create<GameStore>()(
       const alchemyLevel = state.upgrades['alchemy'] ?? 0;
       const alchemyDef = UPGRADES.find((u) => u.id === 'alchemy');
       const alchemyRatio = alchemyDef ? alchemyDef.effect(alchemyLevel) : 1;
-      const result = attemptBreakthrough(state.cultivation, state.resources, alchemyRatio);
+      const result = attemptBreakthrough(state.cultivation, state.resources, alchemyRatio, state.inventory);
       if (!result.success) return false;
-      const cost = getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio);
+      const hasPill = result.pillConsumed ?? false;
+      const cost = getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio, hasPill);
       set((draft) => {
         draft.resources.spiritStones = new Decimal(draft.resources.spiritStones).sub(cost).toString();
         draft.cultivation.stageIndex = result.newStageIndex!;
         draft.cultivation.subStageIndex = 0;
         draft.cultivation.progress = 0;
         if (result.newStageIndex === MAX_STAGE_INDEX) draft.cultivation.totalAscensions += 1;
+        // Consume breakthrough pill if used
+        if (hasPill) {
+          const nextStage = STAGES[result.newStageIndex!];
+          if (nextStage?.breakPillId) {
+            const pillId = nextStage.breakPillId;
+            draft.inventory.items[pillId] = Math.max(0, (draft.inventory.items[pillId] ?? 0) - 1);
+          }
+        }
       });
       return true;
     },
@@ -552,6 +561,14 @@ export const selectBreakthroughCost = (state: GameStore) => {
   const alchemyLevel = state.upgrades['alchemy'] ?? 0;
   const alchemyDef = UPGRADES.find((u) => u.id === 'alchemy');
   const alchemyRatio = alchemyDef ? alchemyDef.effect(alchemyLevel) : 1;
-  return getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio);
+  const hasPill = hasBreakthroughPill(state.cultivation.stageIndex, state.inventory);
+  return getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio, hasPill);
 };
+export const selectBreakthroughCostWithoutPill = (state: GameStore) => {
+  const alchemyLevel = state.upgrades['alchemy'] ?? 0;
+  const alchemyDef = UPGRADES.find((u) => u.id === 'alchemy');
+  const alchemyRatio = alchemyDef ? alchemyDef.effect(alchemyLevel) : 1;
+  return getBreakthroughCost(state.cultivation.stageIndex, alchemyRatio, false);
+};
+export const selectHasBreakthroughPill = (state: GameStore) => hasBreakthroughPill(state.cultivation.stageIndex, state.inventory);
 export const selectIsAtFinalSubStage = (state: GameStore) => isAtFinalSubStage(state.cultivation);

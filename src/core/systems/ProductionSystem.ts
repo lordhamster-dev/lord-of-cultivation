@@ -4,10 +4,18 @@ import { getTechniqueMultiplier, getTechnique } from '../data/techniques';
 import type { ResourceState, EquipmentState } from '../types';
 import { getEquipmentBonuses } from '../systems/EquipmentSystem';
 
-/** Spirit capacity per major stage */
-const SPIRIT_MAX_BY_STAGE = [100, 200, 500, 1000, 2000];
-/** Spirit regeneration per second per major stage */
-const SPIRIT_REGEN_BY_STAGE = [5, 10, 20, 40, 80];
+/** Spirit capacity per major stage (13 stages) */
+const SPIRIT_MAX_BY_STAGE = [
+  100, 200, 500, 1000, 2000,           // 下境界: 炼气, 筑基, 结丹, 元婴, 化神
+  5000, 10000, 20000,                   // 中境界: 炼虚, 合体, 大乘
+  50000, 100000, 200000, 500000, 1000000, // 上境界: 真仙, 金仙, 太乙, 大罗, 道祖
+];
+/** Spirit regeneration per second per major stage (13 stages) */
+const SPIRIT_REGEN_BY_STAGE = [
+  5, 10, 20, 40, 80,                   // 下境界
+  160, 300, 600,                        // 中境界
+  1200, 2400, 5000, 10000, 20000,       // 上境界
+];
 
 /**
  * Compute effective spiritStonesPerSec and expPerSec
