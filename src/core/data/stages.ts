@@ -103,7 +103,9 @@ export const MAX_STAGE_INDEX = STAGES.length - 1;
 
 /** Get the number of sub-stages for a given major stage */
 export function getSubStageCount(stageIndex: number): number {
-  return STAGES[stageIndex]?.subStages.length ?? 4;
+  const stageData = STAGES[stageIndex];
+  if (!stageData) return 1;
+  return stageData.subStages.length;
 }
 
 /** Exponential cost formula: base * multiplier^level */

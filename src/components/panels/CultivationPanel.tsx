@@ -229,7 +229,7 @@ export function CultivationPanel() {
               {hasPill ? (
                 <span className="text-green-400">
                   已持有 (灵石消耗 -{(nextStage.breakPillDiscount * 100).toFixed(0)}%)
-                  {breakthroughCostWithoutPill !== breakthroughCost && (
+                  {hasPill && nextStage.breakPillDiscount > 0 && (
                     <span className="text-slate-500 line-through ml-1">
                       <NumberDisplay value={breakthroughCostWithoutPill} />
                     </span>

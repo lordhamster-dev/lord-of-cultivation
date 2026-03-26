@@ -106,8 +106,8 @@ export function migrate(raw: Partial<GameState>): GameState {
       const oldStageIndex = data.cultivation.stageIndex ?? 0;
 
       if (oldStageIndex === 0) {
-        // 炼气: old 0-8 maps to new 0-12, keep index as-is (valid range)
-        data.cultivation.subStageIndex = Math.min(oldSubStageIndex, 12);
+        // 炼气: old 9 sub-stages → new 13 sub-stages, scale proportionally
+        data.cultivation.subStageIndex = Math.min(Math.floor(oldSubStageIndex * 12 / 8), 12);
       } else if (oldStageIndex >= 1 && oldStageIndex <= 4) {
         // Other stages: old 9 sub-stages → new 4 sub-stages
         // old 0-2 (初期) → new 0 (初期)
