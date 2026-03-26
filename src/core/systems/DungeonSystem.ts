@@ -103,6 +103,9 @@ export interface DungeonTickResult {
   bossDefeated: boolean;
 }
 
+/** Base combat duration for dungeon encounters (ms) */
+const DUNGEON_COMBAT_DURATION_MS = 4_000;
+
 /** Tick dungeon combat */
 export function tickDungeon(
   dungeon: DungeonState,
@@ -134,9 +137,8 @@ export function tickDungeon(
   const currentEnemy = floor.boss ?? floor.enemies[0];
   if (!currentEnemy) return { ...noResult, dungeon: { ...dungeon, isActive: false } };
 
-  // Combat round (6 second duration for dungeons)
-  const combatDurationMs = 4_000;
-  const roundProgress = deltaMs / combatDurationMs;
+  // Combat round
+  const roundProgress = deltaMs / DUNGEON_COMBAT_DURATION_MS;
 
   let enemyHp = dungeon.enemyHp;
   let playerHp = dungeon.playerHp;

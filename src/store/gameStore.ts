@@ -477,6 +477,7 @@ export const useGameStore = create<GameStore>()(
         draft.combat = {
           isActive: true,
           currentAreaId: areaId,
+          currentEnemyId: null,
           enemyHp: 0,
           enemyMaxHp: 0,
           playerHp: playerStats.maxHp,

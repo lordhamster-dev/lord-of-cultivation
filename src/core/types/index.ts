@@ -89,6 +89,7 @@ export interface CombatStats {
 export interface CombatState {
   isActive: boolean;
   currentAreaId: string | null;
+  currentEnemyId: string | null;
   enemyHp: number;
   enemyMaxHp: number;
   playerHp: number;

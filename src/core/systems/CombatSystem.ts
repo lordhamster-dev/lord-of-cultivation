@@ -74,6 +74,7 @@ export function createInitialCombatState(): CombatState {
   return {
     isActive: false,
     currentAreaId: null,
+    currentEnemyId: null,
     enemyHp: 0,
     enemyMaxHp: 0,
     playerHp: 0,
@@ -109,21 +110,21 @@ export function tickCombat(
     return { combat: { ...combat, isActive: false }, inventory, expGain: 0, spiritStonesGain: 0, recentDrops: [] };
   }
 
-  // If no enemy spawned yet, spawn one
   let enemyHp = combat.enemyHp;
   let enemyMaxHp = combat.enemyMaxHp;
   let playerHp = combat.playerHp;
+  let currentEnemyId = combat.currentEnemyId;
 
+  // If no enemy spawned yet or previous enemy is dead, spawn a new one
   if (enemyHp <= 0 && playerHp > 0) {
-    // Spawn new enemy
     const enemy = rollEnemy(area);
     enemyHp = enemy.hp;
     enemyMaxHp = enemy.hp;
+    currentEnemyId = enemy.id;
     playerHp = playerHp <= 0 ? playerStats.maxHp : playerHp;
   }
 
   if (playerHp <= 0) {
-    // Player defeated - stop combat
     return {
       combat: { ...combat, isActive: false, playerHp: 0, lastCombatResult: 'defeat' },
       inventory,
@@ -133,72 +134,19 @@ export function tickCombat(
     };
   }
 
+  // Look up the current enemy by ID
+  const currentEnemy = area.enemies.find(e => e.id === currentEnemyId) ?? area.enemies[0];
+
   // Simulate combat round based on time
-  // Each round takes combatDurationMs, scale by deltaMs
-  const roundProgress = deltaMs / combatDurationMs;
-  if (roundProgress < 1) {
-    // Not enough time for a full round yet - deal proportional damage
-    // We use deterministic partial damage for smoother visuals
-    const currentEnemy = area.enemies.find(e => e.hp === enemyMaxHp) ?? area.enemies[0];
-    const playerDmg = calculateDamage(playerStats.attack, currentEnemy.defense) * roundProgress;
-    const enemyDmg = calculateDamage(currentEnemy.attack, playerStats.defense) * roundProgress;
-
-    enemyHp = Math.max(0, enemyHp - playerDmg);
-    playerHp = Math.max(0, playerHp - enemyDmg);
-
-    if (enemyHp <= 0) {
-      // Enemy defeated
-      const drops = rollDrops(currentEnemy);
-      const newItems = { ...inventory.items };
-      for (const drop of drops) {
-        newItems[drop.itemId] = (newItems[drop.itemId] ?? 0) + drop.quantity;
-      }
-
-      return {
-        combat: {
-          ...combat,
-          enemyHp: 0,
-          enemyMaxHp: 0,
-          playerHp: Math.min(playerStats.maxHp, playerHp + playerStats.maxHp * 0.1), // heal 10% on kill
-          totalKills: combat.totalKills + 1,
-          lastCombatResult: 'victory',
-          loot: drops,
-        },
-        inventory: { ...inventory, items: newItems },
-        expGain: currentEnemy.exp,
-        spiritStonesGain: currentEnemy.spiritStones,
-        recentDrops: drops,
-      };
-    }
-
-    if (playerHp <= 0) {
-      return {
-        combat: { ...combat, enemyHp, playerHp: 0, isActive: false, lastCombatResult: 'defeat' },
-        inventory,
-        expGain: 0,
-        spiritStonesGain: 0,
-        recentDrops: [],
-      };
-    }
-
-    return {
-      combat: { ...combat, enemyHp, enemyMaxHp, playerHp },
-      inventory,
-      expGain: 0,
-      spiritStonesGain: 0,
-      recentDrops: [],
-    };
-  }
-
-  // Full round(s) completed
-  const currentEnemy = area.enemies.find(e => e.hp === enemyMaxHp) ?? area.enemies[0];
-  const playerDmg = calculateDamage(playerStats.attack, currentEnemy.defense);
-  const enemyDmg = calculateDamage(currentEnemy.attack, playerStats.defense);
+  const roundProgress = Math.min(1, deltaMs / combatDurationMs);
+  const playerDmg = calculateDamage(playerStats.attack, currentEnemy.defense) * roundProgress;
+  const enemyDmg = calculateDamage(currentEnemy.attack, playerStats.defense) * roundProgress;
 
   enemyHp = Math.max(0, enemyHp - playerDmg);
   playerHp = Math.max(0, playerHp - enemyDmg);
 
   if (enemyHp <= 0) {
+    // Enemy defeated
     const drops = rollDrops(currentEnemy);
     const newItems = { ...inventory.items };
     for (const drop of drops) {
@@ -208,9 +156,10 @@ export function tickCombat(
     return {
       combat: {
         ...combat,
+        currentEnemyId: null,
         enemyHp: 0,
         enemyMaxHp: 0,
-        playerHp: Math.min(playerStats.maxHp, playerHp + playerStats.maxHp * 0.1),
+        playerHp: Math.min(playerStats.maxHp, playerHp + playerStats.maxHp * 0.1), // heal 10% on kill
         totalKills: combat.totalKills + 1,
         lastCombatResult: 'victory',
         loot: drops,
@@ -233,7 +182,7 @@ export function tickCombat(
   }
 
   return {
-    combat: { ...combat, enemyHp, enemyMaxHp, playerHp },
+    combat: { ...combat, currentEnemyId, enemyHp, enemyMaxHp, playerHp },
     inventory,
     expGain: 0,
     spiritStonesGain: 0,

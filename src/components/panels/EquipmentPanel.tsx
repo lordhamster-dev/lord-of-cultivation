@@ -236,7 +236,7 @@ export function EquipmentPanel() {
               <div key={slot}>
                 <button
                   onClick={() => setSelectedSlot(isSelected ? null : slot)}
-                  className={`w-full text-left ${isSelected ? '' : ''}`}
+                  className="w-full text-left"
                 >
                   <EquipmentCard def={def} isEquipped={true} currentLevel={instance.level} />
                 </button>
