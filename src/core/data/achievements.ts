@@ -1,6 +1,6 @@
 import type { GameState } from '../types';
 
-export type AchievementCategory = 'cultivation' | 'fishing' | 'farming' | 'alchemy' | 'general';
+export type AchievementCategory = 'cultivation' | 'fishing' | 'farming' | 'alchemy' | 'general' | 'combat' | 'equipment';
 
 export interface AchievementDef {
   id: string;
@@ -239,6 +239,92 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: '📋',
     category: 'general',
     condition: (s) => s.stats.totalQuestsCompleted >= 10,
+  },
+
+  // Combat
+  {
+    id: 'first_kill',
+    name: '初战告捷',
+    description: '击杀第一只怪物',
+    icon: '⚔️',
+    category: 'combat',
+    condition: (s) => s.stats.totalMonstersKilled >= 1,
+  },
+  {
+    id: 'kill_100',
+    name: '百战百胜',
+    description: '击杀100只怪物',
+    icon: '⚔️',
+    category: 'combat',
+    condition: (s) => s.stats.totalMonstersKilled >= 100,
+  },
+  {
+    id: 'kill_1000',
+    name: '杀伐果断',
+    description: '击杀1000只怪物',
+    icon: '💀',
+    category: 'combat',
+    condition: (s) => s.stats.totalMonstersKilled >= 1000,
+    isHidden: true,
+  },
+  {
+    id: 'first_boss',
+    name: '斩妖除魔',
+    description: '击杀第一个Boss',
+    icon: '👹',
+    category: 'combat',
+    condition: (s) => s.stats.totalBossesKilled >= 1,
+  },
+  {
+    id: 'first_dungeon',
+    name: '副本探索者',
+    description: '通关第一个副本',
+    icon: '🏔️',
+    category: 'combat',
+    condition: (s) => s.stats.totalDungeonClears >= 1,
+  },
+  {
+    id: 'dungeon_10',
+    name: '副本征服者',
+    description: '通关10个副本',
+    icon: '🏆',
+    category: 'combat',
+    condition: (s) => s.stats.totalDungeonClears >= 10,
+    isHidden: true,
+  },
+
+  // Equipment
+  {
+    id: 'first_forge',
+    name: '初涉炼器',
+    description: '炼制第一件装备',
+    icon: '🔨',
+    category: 'equipment',
+    condition: (s) => s.stats.totalEquipmentForged >= 1,
+  },
+  {
+    id: 'forge_10',
+    name: '炼器大师',
+    description: '炼制10件装备',
+    icon: '🔨',
+    category: 'equipment',
+    condition: (s) => s.stats.totalEquipmentForged >= 10,
+  },
+  {
+    id: 'combat_lv10',
+    name: '战斗初成',
+    description: '战斗技能达到10级',
+    icon: '⚔️',
+    category: 'combat',
+    condition: (s) => s.skills.combat.level >= 10,
+  },
+  {
+    id: 'forging_lv10',
+    name: '炼器小成',
+    description: '炼器技能达到10级',
+    icon: '🔨',
+    category: 'equipment',
+    condition: (s) => s.skills.forging.level >= 10,
   },
 ];
 
