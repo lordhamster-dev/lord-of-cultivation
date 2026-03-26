@@ -380,8 +380,7 @@ export const EQUIPMENT: EquipmentDef[] = [
     },
   },
 
-  // ─── Weapons (stored in helmet slot for backward compat - actually weapons) ─
-  // Weapons are now part of glove slots or separate
+  // ─── Weapons (held items, use glove slots) ──────────────────────────────────
   {
     id: 'iron_sword',
     name: '铁剑',
