@@ -22,11 +22,26 @@ import { getCombatArea } from '../core/data/enemies';
 import { getEquipment } from '../core/data/equipment';
 import { getItem } from '../core/data/items';
 import { SaveManager } from '../save/SaveManager';
-import type { GameState, EquipmentSlotId, ActivityType } from '../core/types';
+import type { GameState, EquipmentSlotId, ActivityType, CombatSupplyState } from '../core/types';
 import { SAVE_VERSION } from '../core/types';
 import type { HerbPlot } from '../core/types';
 
 export const GATHERING_PILL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+function createInitialCombatSupplyState(): CombatSupplyState {
+  return {
+    config: {
+      spiritItemId: null,
+      spiritItemCount: 0,
+      spiritThreshold: 30,
+      hpItemId: null,
+      hpItemCount: 0,
+      hpThreshold: 30,
+    },
+    spiritItemsUsed: 0,
+    hpItemsUsed: 0,
+  };
+}
 
 const DEFAULT_STATE: GameState = {
   resources: { exp: '0', spirit: 100, spiritMax: 100, spiritPerSec: 5 },
@@ -61,6 +76,7 @@ const DEFAULT_STATE: GameState = {
   combat: createInitialCombatState(),
   dungeon: createInitialDungeonState(),
   equipment: createInitialEquipmentState(),
+  combatSupply: createInitialCombatSupplyState(),
 };
 
 /** Helper to check if any activity is active and return its type */
@@ -95,6 +111,8 @@ interface GameActions {
   startDungeon: (dungeonId: string) => boolean;
   forgeEquipment: (equipDefId: string) => boolean;
   enhanceEquipment: (slot: EquipmentSlotId) => boolean;
+  unequipItem: (slot: EquipmentSlotId) => void;
+  updateCombatSupplyConfig: (config: Partial<import('../core/types').CombatSupplyConfig>) => void;
   startMeditation: () => void;
   stopMeditation: () => void;
 }
@@ -186,6 +204,39 @@ export const useGameStore = create<GameStore>()(
             }
             state.combat = combatResult.combat;
             state.inventory = combatResult.inventory;
+
+            // ─── Combat supply auto-consume ─────────────────────────────
+            const supply = state.combatSupply;
+            const supplyConfig = supply.config;
+            const combatPlayerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+
+            // Auto-use HP item when HP% drops below threshold
+            if (supplyConfig.hpItemId && state.combat.isActive && state.combat.playerHp > 0) {
+              const hpPercent = (state.combat.playerHp / combatPlayerStats.maxHp) * 100;
+              if (hpPercent < supplyConfig.hpThreshold && supply.hpItemsUsed < supplyConfig.hpItemCount) {
+                const hpItemQty = state.inventory.items[supplyConfig.hpItemId] ?? 0;
+                if (hpItemQty > 0) {
+                  state.inventory.items[supplyConfig.hpItemId] = hpItemQty - 1;
+                  // Heal 30% of max HP
+                  state.combat.playerHp = Math.min(combatPlayerStats.maxHp, state.combat.playerHp + combatPlayerStats.maxHp * 0.3);
+                  state.combatSupply.hpItemsUsed += 1;
+                }
+              }
+            }
+
+            // Auto-use spirit item when spirit% drops below threshold
+            if (supplyConfig.spiritItemId && state.combat.isActive) {
+              const spiritPercent = (state.resources.spirit / state.resources.spiritMax) * 100;
+              if (spiritPercent < supplyConfig.spiritThreshold && supply.spiritItemsUsed < supplyConfig.spiritItemCount) {
+                const spiritItemQty = state.inventory.items[supplyConfig.spiritItemId] ?? 0;
+                if (spiritItemQty > 0) {
+                  state.inventory.items[supplyConfig.spiritItemId] = spiritItemQty - 1;
+                  // Recover 30% of max spirit
+                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * 0.3);
+                  state.combatSupply.spiritItemsUsed += 1;
+                }
+              }
+            }
           }
         }
 
@@ -225,6 +276,37 @@ export const useGameStore = create<GameStore>()(
             }
             state.dungeon = dungeonResult.dungeon;
             state.inventory = dungeonResult.inventory;
+
+            // ─── Dungeon supply auto-consume ────────────────────────────
+            const dSupply = state.combatSupply;
+            const dConfig = dSupply.config;
+            const dungeonPlayerStats = getPlayerCombatStats(state.cultivation.stageIndex, state.equipment, state.skills.combat.level);
+
+            // Auto-use HP item
+            if (dConfig.hpItemId && state.dungeon.isActive && state.dungeon.playerHp > 0) {
+              const hpPct = (state.dungeon.playerHp / dungeonPlayerStats.maxHp) * 100;
+              if (hpPct < dConfig.hpThreshold && dSupply.hpItemsUsed < dConfig.hpItemCount) {
+                const qty = state.inventory.items[dConfig.hpItemId] ?? 0;
+                if (qty > 0) {
+                  state.inventory.items[dConfig.hpItemId] = qty - 1;
+                  state.dungeon.playerHp = Math.min(dungeonPlayerStats.maxHp, state.dungeon.playerHp + dungeonPlayerStats.maxHp * 0.3);
+                  state.combatSupply.hpItemsUsed += 1;
+                }
+              }
+            }
+
+            // Auto-use spirit item
+            if (dConfig.spiritItemId && state.dungeon.isActive) {
+              const sPct = (state.resources.spirit / state.resources.spiritMax) * 100;
+              if (sPct < dConfig.spiritThreshold && dSupply.spiritItemsUsed < dConfig.spiritItemCount) {
+                const qty = state.inventory.items[dConfig.spiritItemId] ?? 0;
+                if (qty > 0) {
+                  state.inventory.items[dConfig.spiritItemId] = qty - 1;
+                  state.resources.spirit = Math.min(state.resources.spiritMax, state.resources.spirit + state.resources.spiritMax * 0.3);
+                  state.combatSupply.spiritItemsUsed += 1;
+                }
+              }
+            }
           }
         }
 
@@ -361,6 +443,7 @@ export const useGameStore = create<GameStore>()(
         combat: state.combat,
         dungeon: state.dungeon,
         equipment: state.equipment,
+        combatSupply: state.combatSupply,
       };
       SaveManager.save(snapshot);
       set((draft) => { draft.lastSaveTime = snapshot.lastSaveTime; });
@@ -555,6 +638,9 @@ export const useGameStore = create<GameStore>()(
           lastCombatResult: 'none',
         };
         draft.activeActivity = 'combat';
+        // Reset supply counters for new combat session
+        draft.combatSupply.spiritItemsUsed = 0;
+        draft.combatSupply.hpItemsUsed = 0;
       });
     },
 
@@ -578,6 +664,9 @@ export const useGameStore = create<GameStore>()(
       set((draft) => {
         draft.dungeon = startDungeonSystem(draft.dungeon, dungeonId, playerStats.maxHp);
         draft.activeActivity = 'dungeon';
+        // Reset supply counters for new dungeon session
+        draft.combatSupply.spiritItemsUsed = 0;
+        draft.combatSupply.hpItemsUsed = 0;
       });
       return true;
     },
@@ -620,6 +709,18 @@ export const useGameStore = create<GameStore>()(
         draft.skills.forging = addSkillExp(draft.skills.forging, result.exp);
       });
       return true;
+    },
+
+    unequipItem(slot: EquipmentSlotId): void {
+      set((draft) => {
+        delete draft.equipment.equipped[slot];
+      });
+    },
+
+    updateCombatSupplyConfig(config: Partial<import('../core/types').CombatSupplyConfig>): void {
+      set((draft) => {
+        Object.assign(draft.combatSupply.config, config);
+      });
     },
 
     startMeditation(): void {

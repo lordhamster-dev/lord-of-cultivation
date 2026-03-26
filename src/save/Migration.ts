@@ -172,6 +172,49 @@ export function migrate(raw: Partial<GameState>): GameState {
     }
   }
 
+  // Version 6 → 7 (9-grid equipment, combat supply, unified battle page)
+  if (data.version < 7) {
+    // Migrate old 3-slot equipment (weapon/armor/accessory) to new 9-grid slots
+    if (data.equipment?.equipped) {
+      const oldEquipped = data.equipment.equipped;
+      const newEquipped: Record<string, unknown> = {};
+
+      // weapon → glove_left
+      if (oldEquipped.weapon) {
+        newEquipped.glove_left = oldEquipped.weapon;
+      }
+      // armor → armor (same)
+      if (oldEquipped.armor) {
+        newEquipped.armor = oldEquipped.armor;
+      }
+      // accessory → necklace
+      if (oldEquipped.accessory) {
+        newEquipped.necklace = oldEquipped.accessory;
+      }
+
+      data.equipment.equipped = newEquipped;
+    }
+
+    // Add combat supply state
+    data.combatSupply = data.combatSupply ?? {
+      config: {
+        spiritItemId: null,
+        spiritItemCount: 0,
+        spiritThreshold: 30,
+        hpItemId: null,
+        hpItemCount: 0,
+        hpThreshold: 30,
+      },
+      spiritItemsUsed: 0,
+      hpItemsUsed: 0,
+    };
+
+    data = {
+      ...data,
+      version: 7,
+    };
+  }
+
   return data as GameState;
 }
 

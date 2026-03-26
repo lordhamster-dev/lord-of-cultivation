@@ -10,13 +10,11 @@ import { FishingPanel } from './components/panels/FishingPanel';
 import { AlchemyPanel } from './components/panels/AlchemyPanel';
 import { AchievementPanel } from './components/panels/AchievementPanel';
 import { QuestPanel } from './components/panels/QuestPanel';
-import { CombatPanel } from './components/panels/CombatPanel';
-import { DungeonPanel } from './components/panels/DungeonPanel';
-import { EquipmentPanel } from './components/panels/EquipmentPanel';
+import { BattlePanel } from './components/panels/BattlePanel';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useLoadSave } from './hooks/useLoadSave';
 
-type Panel = 'cultivation' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests' | 'combat' | 'dungeon' | 'equipment';
+type Panel = 'cultivation' | 'save' | 'inventory' | 'herbs' | 'fishing' | 'alchemy' | 'achievements' | 'quests' | 'combat';
 
 function App() {
   const [activePanel, setActivePanel] = useState<Panel>('cultivation');
@@ -35,9 +33,7 @@ function App() {
       case 'alchemy':     return <AlchemyPanel />;
       case 'achievements': return <AchievementPanel />;
       case 'quests':      return <QuestPanel />;
-      case 'combat':      return <CombatPanel />;
-      case 'dungeon':     return <DungeonPanel />;
-      case 'equipment':   return <EquipmentPanel />;
+      case 'combat':      return <BattlePanel />;
     }
   };
 
