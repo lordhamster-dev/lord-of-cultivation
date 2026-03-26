@@ -4,6 +4,7 @@ import { SkillBar } from '../ui/SkillBar';
 import { Button } from '../ui/Button';
 import { NumberDisplay } from '../ui/NumberDisplay';
 import { EQUIPMENT, getEquipment, getEnhanceCost, getEnhanceMaterials, getEquipmentTotalStats } from '../../core/data/equipment';
+import { STAGES } from '../../core/data/stages';
 import type { EquipmentDef } from '../../core/data/equipment';
 import { canForge, canEnhance } from '../../core/systems/EquipmentSystem';
 import { getItem } from '../../core/data/items';
@@ -152,7 +153,7 @@ export function ForgePanel() {
                     </div>
                     {(isLevelLocked || isStageLocked) && (
                       <div className="text-xs text-red-400 mt-1">
-                        {isStageLocked ? `需要境界 ${def.requiredStage + 1}` : `需要炼器 Lv.${def.forgingRecipe.forgingLevelRequired}`}
+                        {isStageLocked ? `需要境界: ${STAGES[def.requiredStage]?.name ?? def.requiredStage}` : `需要炼器 Lv.${def.forgingRecipe.forgingLevelRequired}`}
                       </div>
                     )}
                   </button>

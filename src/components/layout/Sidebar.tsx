@@ -6,9 +6,9 @@ interface SidebarProps {
 }
 
 const TABS: { id: Panel; label: string; icon: string }[] = [
+  { id: 'inventory',   label: '背包', icon: '🎒' },
   { id: 'cultivation', label: '修炼', icon: '⚡' },
   { id: 'combat',      label: '战斗', icon: '⚔️' },
-  { id: 'inventory',   label: '背包', icon: '🎒' },
   { id: 'forge',       label: '炼器', icon: '🔨' },
   { id: 'alchemy',     label: '炼丹', icon: '⚗️' },
   { id: 'herbs',       label: '种植', icon: '🌿' },

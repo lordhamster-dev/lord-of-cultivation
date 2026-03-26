@@ -23,7 +23,7 @@ export function ItemSlot({ itemId, quantity, onClick, selected }: ItemSlotProps)
     >
       <span className="text-xl">{item.emoji}</span>
       <span className="text-xs text-slate-300 truncate w-full text-center leading-tight mt-0.5">{item.name}</span>
-      <span className="absolute bottom-0.5 right-1 text-xs text-amber-300 font-bold">{quantity}</span>
+      <span className="absolute -bottom-1 right-0.5 text-xs text-amber-300 font-bold">{quantity}</span>
     </div>
   );
 }
