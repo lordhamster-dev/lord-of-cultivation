@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DUNGEONS, getDungeon } from "../../core/data/dungeons";
 import { COMBAT_AREAS } from "../../core/data/enemies";
 import type { EquipmentDef } from "../../core/data/equipment";
@@ -11,8 +11,6 @@ import { useGameStore } from "../../store/gameStore";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
 import { SkillBar } from "../ui/SkillBar";
-
-type BottomTab = "combat" | "dungeon";
 
 // ─── 9-Grid Equipment Slot Definitions ──────────────────────────────────────
 const EQUIPMENT_GRID: { slot: EquipmentSlotId; label: string; icon: string }[] = [
@@ -86,51 +84,15 @@ export function BattlePanel() {
     const updateCombatSupplyConfig = useGameStore((s) => s.updateCombatSupplyConfig);
 
     // ── UI state ───────────────────────────────────────────────────────────────
-    const [bottomTab, setBottomTab] = useState<BottomTab>("combat");
-    const [selectedArea, setSelectedArea] = useState(COMBAT_AREAS[0].id);
     const [selectedGridSlot, setSelectedGridSlot] = useState<EquipmentSlotId | null>(null);
-    const [repeatCount, setRepeatCount] = useState(1);
-    const [repeatInput, setRepeatInput] = useState("1");
+    const [areaTab, setAreaTab] = useState<"combat" | "dungeon">("combat");
+    const [areaExpanded, setAreaExpanded] = useState(true);
     const [, forceUpdate] = useState(0);
-
-    // ── Auto-repeat refs ───────────────────────────────────────────────────────
-    const prevCombatActive = useRef(false);
-    const autoRepeatRef = useRef(false);
-    const remainingRef = useRef(0);
-    const selectedAreaRef = useRef(selectedArea);
-    const [repeatStatus, setRepeatStatus] = useState("");
-
-    useEffect(() => {
-        selectedAreaRef.current = selectedArea;
-    }, [selectedArea]);
 
     useEffect(() => {
         const id = setInterval(() => forceUpdate((n) => n + 1), 200);
         return () => clearInterval(id);
     }, []);
-
-    useEffect(() => {
-        const wasActive = prevCombatActive.current;
-        prevCombatActive.current = combat.isActive;
-        if (!wasActive || combat.isActive) return;
-        if (!autoRepeatRef.current) return;
-        if (combat.lastCombatResult === "defeat") {
-            autoRepeatRef.current = false;
-            setRepeatStatus("");
-            return;
-        }
-        const rem = remainingRef.current;
-        if (rem === -1) {
-            startCombat(selectedAreaRef.current);
-        } else if (rem > 0) {
-            remainingRef.current = rem - 1;
-            setRepeatStatus(`剩余 ${rem - 1} 次`);
-            startCombat(selectedAreaRef.current);
-        } else {
-            autoRepeatRef.current = false;
-            setRepeatStatus("");
-        }
-    }, [combat.isActive, combat.lastCombatResult, startCombat]);
 
     // ── Derived values ─────────────────────────────────────────────────────────
     const combatLevel = skills.combat.level;
@@ -204,37 +166,6 @@ export function BattlePanel() {
         [inventory.items],
     );
 
-    function handleStartCombat() {
-        const area = COMBAT_AREAS.find((a) => a.id === selectedArea);
-        if (!area || stageIndex < area.requiredStage) return;
-        if (repeatCount === 1) {
-            autoRepeatRef.current = false;
-            remainingRef.current = 0;
-            setRepeatStatus("");
-        } else if (repeatCount === 0) {
-            autoRepeatRef.current = true;
-            remainingRef.current = -1;
-            setRepeatStatus("∞ 连续");
-        } else {
-            autoRepeatRef.current = true;
-            remainingRef.current = repeatCount - 1;
-            setRepeatStatus(`剩余 ${repeatCount - 1} 次`);
-        }
-        startCombat(selectedArea);
-    }
-
-    function handleStop() {
-        autoRepeatRef.current = false;
-        remainingRef.current = 0;
-        setRepeatStatus("");
-        stopCombat();
-    }
-
-    const canStartCombat =
-        activeActivity === null &&
-        spirit > 0 &&
-        !!COMBAT_AREAS.find((a) => a.id === selectedArea && stageIndex >= a.requiredStage);
-
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <div className="p-4 space-y-3">
@@ -242,9 +173,8 @@ export function BattlePanel() {
             <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-amber-400">⚔️ 战斗</h2>
                 <div className="flex items-center gap-2">
-                    {repeatStatus && <span className="text-xs text-amber-300">{repeatStatus}</span>}
                     {isInCombat && (
-                        <Button variant="danger" size="sm" onClick={handleStop}>
+                        <Button variant="danger" size="sm" onClick={stopCombat}>
                             停止战斗
                         </Button>
                     )}
@@ -257,6 +187,208 @@ export function BattlePanel() {
             {/* Skill bar */}
             <div className="bg-slate-800 rounded-lg p-3">
                 <SkillBar skillName="战斗" skill={skills.combat} icon="⚔️" />
+            </div>
+
+            {/* Collapsible: 战斗区域 / 副本 tabs */}
+            <div className="bg-slate-800 rounded-lg overflow-hidden">
+                <button
+                    onClick={() => setAreaExpanded(!areaExpanded)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                    <span>{areaTab === "combat" ? "⚔️ 战斗区域" : "🏔️ 副本"}</span>
+                    <span className="text-slate-400 text-xs">{areaExpanded ? "▲" : "▼"}</span>
+                </button>
+                {areaExpanded && (
+                    <>
+                        {/* Tab switcher */}
+                        <div className="flex border-b border-slate-700">
+                            {(["combat", "dungeon"] as const).map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setAreaTab(tab)}
+                                    className={`flex-1 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                                        areaTab === tab
+                                            ? "text-amber-400 border-b-2 border-amber-400 bg-amber-500/5"
+                                            : "text-slate-400 hover:text-slate-200"
+                                    }`}
+                                >
+                                    {tab === "combat" ? "⚔️ 战斗区域" : "🏔️ 副本"}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Combat areas */}
+                        {areaTab === "combat" && (
+                            <div className="p-2 space-y-2">
+                                {COMBAT_AREAS.map((area) => {
+                                    const unlocked = stageIndex >= area.requiredStage;
+                                    const { dropMap } = combatAreaDropMaps.find((m) => m.areaId === area.id)!;
+                                    const canFight = unlocked && activeActivity === null && spirit > 0;
+                                    return (
+                                        <div
+                                            key={area.id}
+                                            className={`p-3 rounded-lg border ${
+                                                !unlocked
+                                                    ? "border-slate-700 bg-slate-800/50 opacity-50"
+                                                    : "border-slate-600 bg-slate-800"
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-medium text-slate-200">
+                                                        {area.icon} {area.name}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                        {area.description}
+                                                    </div>
+                                                    {unlocked ? (
+                                                        <div className="text-xs text-slate-500 mt-1">
+                                                            {area.enemies.map((e) => `${e.icon}${e.name}`).join("、")} |{" "}
+                                                            {(area.combatDurationMs / 1000).toFixed(0)}s/回合
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-xs text-red-400 mt-1">
+                                                            需要境界:{" "}
+                                                            {STAGES[area.requiredStage]?.name ?? area.requiredStage}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {unlocked && (
+                                                    <Button
+                                                        variant="primary"
+                                                        size="sm"
+                                                        onClick={() => startCombat(area.id)}
+                                                        disabled={!canFight || isInCombat || isInDungeon}
+                                                    >
+                                                        {isInDungeon
+                                                            ? "副本中"
+                                                            : isInCombat
+                                                              ? "战斗中"
+                                                              : activeActivity !== null
+                                                                ? "活动中"
+                                                                : spirit <= 0
+                                                                  ? "灵力不足"
+                                                                  : "⚔️ 战斗"}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {unlocked && dropMap.size > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                    {Array.from(dropMap.entries()).map(([itemId, chance]) => {
+                                                        const itemDef = getItem(itemId);
+                                                        return itemDef ? (
+                                                            <span
+                                                                key={itemId}
+                                                                className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400"
+                                                            >
+                                                                {itemDef.emoji}
+                                                                {itemDef.name} {(chance * 100).toFixed(0)}%
+                                                            </span>
+                                                        ) : null;
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Dungeons */}
+                        {areaTab === "dungeon" && (
+                            <div className="p-2 space-y-2">
+                                <div className="flex justify-between text-xs text-slate-400 px-1">
+                                    <span>副本通关总数</span>
+                                    <span className="text-amber-300">{stats.totalDungeonClears}</span>
+                                </div>
+                                {DUNGEONS.map((d) => {
+                                    const unlocked = stageIndex >= d.requiredStage;
+                                    const runsToday = dungeon.dailyRuns[d.id] ?? 0;
+                                    const canEnter =
+                                        unlocked && runsToday < d.maxDailyRuns && activeActivity === null && spirit > 0;
+                                    const boss = dungeonBossDrops.find((b) => b.dungeonId === d.id)?.boss ?? null;
+                                    return (
+                                        <div
+                                            key={d.id}
+                                            className={`p-3 rounded-lg border ${
+                                                !unlocked
+                                                    ? "border-slate-700 bg-slate-800/50 opacity-50"
+                                                    : "border-slate-600 bg-slate-800"
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="font-medium text-slate-200">
+                                                        {d.icon} {d.name}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">{d.description}</div>
+                                                    {unlocked ? (
+                                                        <div className="text-xs text-slate-500 mt-1">
+                                                            {d.floors.length}层 | 今日剩余: {d.maxDailyRuns - runsToday}
+                                                            /{d.maxDailyRuns}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-xs text-red-400 mt-1">
+                                                            需要境界: {STAGES[d.requiredStage]?.name ?? d.requiredStage}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {unlocked && (
+                                                    <Button
+                                                        variant="primary"
+                                                        size="sm"
+                                                        onClick={() => startDungeon(d.id)}
+                                                        disabled={!canEnter}
+                                                    >
+                                                        {runsToday >= d.maxDailyRuns
+                                                            ? "次数用完"
+                                                            : activeActivity !== null
+                                                              ? "有活动进行中"
+                                                              : spirit <= 0
+                                                                ? "灵力不足"
+                                                                : "挑战"}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {unlocked && (
+                                                <div className="mt-2 flex gap-1">
+                                                    {d.floors.map((floor, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-400"
+                                                        >
+                                                            {floor.floor}层
+                                                            {floor.boss && (
+                                                                <span className="text-red-400 ml-1">BOSS</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {unlocked && boss && boss.drops.length > 0 && (
+                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                    <span className="text-xs text-red-400">BOSS:</span>
+                                                    {boss.drops.map((drop) => {
+                                                        const dropItem = getItem(drop.itemId);
+                                                        return dropItem ? (
+                                                            <span
+                                                                key={drop.itemId}
+                                                                className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400"
+                                                            >
+                                                                {dropItem.emoji}
+                                                                {dropItem.name} {(drop.chance * 100).toFixed(0)}%
+                                                            </span>
+                                                        ) : null;
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             {/* Player (left) | Enemy (right) */}
@@ -293,6 +425,136 @@ export function BattlePanel() {
                             </span>
                         </div>
                         <ProgressBar value={spiritPct} color="bg-purple-500" />
+                    </div>
+
+                    {/* Stats */}
+                    <div className="bg-slate-800 rounded-lg p-2">
+                        <div className="text-xs text-slate-400 font-medium mb-1">📊 属性</div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                            <div className="flex justify-between">
+                                <span className="text-red-400">⚔️ 攻击</span>
+                                <span className="text-slate-200 font-semibold">{playerStats.attack}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-blue-400">🛡️ 防御</span>
+                                <span className="text-slate-200 font-semibold">{playerStats.defense}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-green-400">❤️ 上限</span>
+                                <span className="text-slate-200 font-semibold">{playerStats.maxHp}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-amber-400">🏆 击杀</span>
+                                <span className="text-slate-200 font-semibold">{combat.totalKills}</span>
+                            </div>
+                        </div>
+                        {isInCombat && combat.loot.length > 0 && (
+                            <div className="pt-1 border-t border-slate-700 mt-1">
+                                <div className="text-xs text-slate-500 mb-0.5">最近掉落:</div>
+                                <div className="flex flex-wrap gap-1">
+                                    {combat.loot.map((item, idx) => {
+                                        const itemDef = getItem(item.itemId);
+                                        return (
+                                            <span
+                                                key={idx}
+                                                className="text-xs bg-amber-900/30 px-1.5 py-0.5 rounded text-amber-300"
+                                            >
+                                                {itemDef?.name ?? item.itemId} ×{item.quantity}
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Equipment 9-grid */}
+                    <div className="bg-slate-800 rounded-lg p-2 space-y-1">
+                        <div className="text-xs text-slate-400 font-medium">🛡️ 装备</div>
+                        <div className="grid grid-cols-3 gap-1">
+                            {EQUIPMENT_GRID.map(({ slot, label }) => {
+                                const instance = equipment.equipped[slot];
+                                const def = instance ? getEquipment(instance.defId) : null;
+                                const isSelected = selectedGridSlot === slot;
+                                return (
+                                    <button
+                                        key={slot}
+                                        onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
+                                        className={`p-1 rounded-lg border text-center transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[52px] ${
+                                            isSelected
+                                                ? "border-amber-500/50 bg-amber-500/10"
+                                                : instance
+                                                  ? "border-slate-500 bg-slate-800"
+                                                  : "border-slate-700 bg-slate-800/50"
+                                        }`}
+                                    >
+                                        <div className="text-sm">{def ? def.icon : ""}</div>
+                                        {def ? (
+                                            <div className="text-xs text-amber-400 leading-tight">{def.name}</div>
+                                        ) : (
+                                            <div className="text-xs text-slate-600 leading-tight">{label}</div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {selectedGridSlot &&
+                            (() => {
+                                const instance = equipment.equipped[selectedGridSlot];
+                                const def = instance ? getEquipment(instance.defId) : null;
+                                const slotInventoryEquip = inventoryEquipment.filter(
+                                    (e) => e.def.slot === selectedGridSlot,
+                                );
+                                return (
+                                    <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 space-y-1">
+                                        {def && instance ? (
+                                            <>
+                                                <EquipmentCard def={def} currentLevel={instance.level} />
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    className="w-full"
+                                                    onClick={() => {
+                                                        unequipItem(selectedGridSlot);
+                                                        setSelectedGridSlot(null);
+                                                    }}
+                                                >
+                                                    卸下
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <div className="text-xs text-slate-500 text-center py-1">
+                                                {getSlotLabel(selectedGridSlot)} — 未装备
+                                            </div>
+                                        )}
+                                        {slotInventoryEquip.length > 0 && (
+                                            <div className="space-y-1 pt-1 border-t border-slate-700">
+                                                <div className="text-xs text-slate-400">背包中可装备:</div>
+                                                {slotInventoryEquip.map(({ def: eDef, qty }) => (
+                                                    <div
+                                                        key={eDef.id}
+                                                        className="flex items-center justify-between gap-1"
+                                                    >
+                                                        <span className="text-xs text-slate-300">
+                                                            {eDef.icon} {eDef.name} ×{qty}
+                                                        </span>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={() => {
+                                                                equipFromInventory(eDef.id);
+                                                                setSelectedGridSlot(null);
+                                                            }}
+                                                        >
+                                                            装备
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                     </div>
 
                     {/* Supply (pills only) */}
@@ -413,136 +675,6 @@ export function BattlePanel() {
                                 </div>
                             )}
                     </div>
-
-                    {/* Equipment 9-grid */}
-                    <div className="bg-slate-800 rounded-lg p-2 sspace-y-1">
-                        <div className="text-xs text-slate-400 font-medium">🛡️ 装备</div>
-                        <div className="grid grid-cols-3 gap-1">
-                            {EQUIPMENT_GRID.map(({ slot, label }) => {
-                                const instance = equipment.equipped[slot];
-                                const def = instance ? getEquipment(instance.defId) : null;
-                                const isSelected = selectedGridSlot === slot;
-                                return (
-                                    <button
-                                        key={slot}
-                                        onClick={() => setSelectedGridSlot(isSelected ? null : slot)}
-                                        className={`p-1 rounded-lg border text-center transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[52px] ${
-                                            isSelected
-                                                ? "border-amber-500/50 bg-amber-500/10"
-                                                : instance
-                                                  ? "border-slate-500 bg-slate-800"
-                                                  : "border-slate-700 bg-slate-800/50"
-                                        }`}
-                                    >
-                                        <div className="text-sm">{def ? def.icon : ""}</div>
-                                        {def ? (
-                                            <div className="text-xs text-amber-400 leading-tight">{def.name}</div>
-                                        ) : (
-                                            <div className="text-xs text-slate-600 leading-tight">{label}</div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {selectedGridSlot &&
-                            (() => {
-                                const instance = equipment.equipped[selectedGridSlot];
-                                const def = instance ? getEquipment(instance.defId) : null;
-                                const slotInventoryEquip = inventoryEquipment.filter(
-                                    (e) => e.def.slot === selectedGridSlot,
-                                );
-                                return (
-                                    <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 space-y-1">
-                                        {def && instance ? (
-                                            <>
-                                                <EquipmentCard def={def} currentLevel={instance.level} />
-                                                <Button
-                                                    variant="danger"
-                                                    size="sm"
-                                                    className="w-full"
-                                                    onClick={() => {
-                                                        unequipItem(selectedGridSlot);
-                                                        setSelectedGridSlot(null);
-                                                    }}
-                                                >
-                                                    卸下
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <div className="text-xs text-slate-500 text-center py-1">
-                                                {getSlotLabel(selectedGridSlot)} — 未装备
-                                            </div>
-                                        )}
-                                        {slotInventoryEquip.length > 0 && (
-                                            <div className="space-y-1 pt-1 border-t border-slate-700">
-                                                <div className="text-xs text-slate-400">背包中可装备:</div>
-                                                {slotInventoryEquip.map(({ def: eDef, qty }) => (
-                                                    <div
-                                                        key={eDef.id}
-                                                        className="flex items-center justify-between gap-1"
-                                                    >
-                                                        <span className="text-xs text-slate-300">
-                                                            {eDef.icon} {eDef.name} ×{qty}
-                                                        </span>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="primary"
-                                                            onClick={() => {
-                                                                equipFromInventory(eDef.id);
-                                                                setSelectedGridSlot(null);
-                                                            }}
-                                                        >
-                                                            装备
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="bg-slate-800 rounded-lg p-2">
-                        <div className="text-xs text-slate-400 font-medium mb-1">📊 属性</div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                            <div className="flex justify-between">
-                                <span className="text-red-400">⚔️ 攻击</span>
-                                <span className="text-slate-200 font-semibold">{playerStats.attack}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-blue-400">🛡️ 防御</span>
-                                <span className="text-slate-200 font-semibold">{playerStats.defense}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-green-400">❤️ 上限</span>
-                                <span className="text-slate-200 font-semibold">{playerStats.maxHp}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-amber-400">🏆 击杀</span>
-                                <span className="text-slate-200 font-semibold">{combat.totalKills}</span>
-                            </div>
-                        </div>
-                        {isInCombat && combat.loot.length > 0 && (
-                            <div className="pt-1 border-t border-slate-700 mt-1">
-                                <div className="text-xs text-slate-500 mb-0.5">最近掉落:</div>
-                                <div className="flex flex-wrap gap-1">
-                                    {combat.loot.map((item, idx) => {
-                                        const itemDef = getItem(item.itemId);
-                                        return (
-                                            <span
-                                                key={idx}
-                                                className="text-xs bg-amber-900/30 px-1.5 py-0.5 rounded text-amber-300"
-                                            >
-                                                {itemDef?.name ?? item.itemId} ×{item.quantity}
-                                            </span>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
 
                 {/* ─ Enemy column ──────────────────────────────────────────────────── */}
@@ -642,254 +774,6 @@ export function BattlePanel() {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* Bottom tabs */}
-            <div className="space-y-2">
-                <div className="flex gap-1">
-                    {(["combat", "dungeon"] as BottomTab[]).map((tab) => {
-                        const label = tab === "combat" ? "⚔️ 战斗区域" : "🏔️ 副本";
-                        return (
-                            <button
-                                key={tab}
-                                onClick={() => setBottomTab(tab)}
-                                className={`px-3 py-1.5 rounded text-xs transition-colors cursor-pointer ${
-                                    bottomTab === tab
-                                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                                        : "text-slate-400 border border-slate-600 hover:text-slate-200"
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Combat areas — click to expand inline */}
-                {bottomTab === "combat" && (
-                    <div className="space-y-2">
-                        {COMBAT_AREAS.map((area) => {
-                            const unlocked = stageIndex >= area.requiredStage;
-                            const isSelected = selectedArea === area.id;
-                            const { dropMap } = combatAreaDropMaps.find((m) => m.areaId === area.id)!;
-                            return (
-                                <div key={area.id}>
-                                    <button
-                                        onClick={() => unlocked && setSelectedArea(area.id)}
-                                        className={`w-full text-left p-3 rounded-lg border transition-colors cursor-pointer ${
-                                            !unlocked
-                                                ? "border-slate-700 bg-slate-800/50 opacity-50 cursor-not-allowed"
-                                                : isSelected
-                                                  ? "border-red-500/50 bg-red-500/10"
-                                                  : "border-slate-600 bg-slate-800 hover:border-slate-500"
-                                        }`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <span className="font-medium text-slate-200">
-                                                {area.icon} {area.name}
-                                            </span>
-                                            {!unlocked ? (
-                                                <span className="text-xs text-slate-500">
-                                                    需要: {STAGES[area.requiredStage]?.name ?? area.requiredStage}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-slate-500">
-                                                    {(area.combatDurationMs / 1000).toFixed(0)}s/回合
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-xs text-slate-500 mt-0.5">{area.description}</div>
-                                        {unlocked && (
-                                            <div className="text-xs text-slate-500 mt-1">
-                                                {area.enemies.map((e) => `${e.icon}${e.name}`).join("、")}
-                                            </div>
-                                        )}
-                                        {unlocked && dropMap.size > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                {Array.from(dropMap.entries()).map(([itemId, chance]) => {
-                                                    const itemDef = getItem(itemId);
-                                                    return itemDef ? (
-                                                        <span
-                                                            key={itemId}
-                                                            className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400"
-                                                        >
-                                                            {itemDef.emoji}
-                                                            {itemDef.name} {(chance * 100).toFixed(0)}%
-                                                        </span>
-                                                    ) : null;
-                                                })}
-                                            </div>
-                                        )}
-                                    </button>
-
-                                    {/* Inline battle controls */}
-                                    {isSelected && unlocked && (
-                                        <div className="mt-1 bg-slate-800/60 rounded-lg p-3 border border-red-500/20 space-y-2">
-                                            <div className="text-xs text-slate-400">战斗次数</div>
-                                            <div className="flex gap-1 flex-wrap items-center">
-                                                {[1, 5, 10, 20].map((n) => (
-                                                    <button
-                                                        key={n}
-                                                        onClick={() => {
-                                                            setRepeatCount(n);
-                                                            setRepeatInput(String(n));
-                                                        }}
-                                                        className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
-                                                            repeatCount === n
-                                                                ? "bg-red-500/20 text-red-400 border border-red-500/40"
-                                                                : "text-slate-400 border border-slate-600 hover:text-slate-200"
-                                                        }`}
-                                                    >
-                                                        {n}次
-                                                    </button>
-                                                ))}
-                                                <button
-                                                    onClick={() => {
-                                                        setRepeatCount(0);
-                                                        setRepeatInput("∞");
-                                                    }}
-                                                    className={`px-2.5 py-1 rounded text-xs cursor-pointer transition-colors ${
-                                                        repeatCount === 0
-                                                            ? "bg-red-500/20 text-red-400 border border-red-500/40"
-                                                            : "text-slate-400 border border-slate-600 hover:text-slate-200"
-                                                    }`}
-                                                >
-                                                    ∞
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    value={repeatInput === "∞" ? "" : repeatInput}
-                                                    placeholder="自定义"
-                                                    onChange={(e) => {
-                                                        const val = parseInt(e.target.value);
-                                                        if (!isNaN(val) && val >= 1) {
-                                                            setRepeatCount(val);
-                                                            setRepeatInput(String(val));
-                                                        } else {
-                                                            setRepeatInput(e.target.value);
-                                                        }
-                                                    }}
-                                                    className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-0.5 text-slate-200 text-xs"
-                                                />
-                                            </div>
-                                            <Button
-                                                variant="primary"
-                                                className="w-full"
-                                                onClick={handleStartCombat}
-                                                disabled={isInCombat || isInDungeon || !canStartCombat}
-                                            >
-                                                {isInDungeon
-                                                    ? "副本进行中"
-                                                    : isInCombat
-                                                      ? "战斗中..."
-                                                      : activeActivity !== null && activeActivity !== "combat"
-                                                        ? "有活动进行中"
-                                                        : spirit <= 0
-                                                          ? "灵力不足"
-                                                          : repeatCount === 0
-                                                            ? "⚔️ 无限战斗"
-                                                            : repeatCount === 1
-                                                              ? "⚔️ 战斗一次"
-                                                              : `⚔️ 战斗 ${repeatCount} 次`}
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* Dungeon */}
-                {bottomTab === "dungeon" && (
-                    <div className="space-y-3">
-                        <div className="flex justify-between text-xs text-slate-400">
-                            <span>副本通关总数</span>
-                            <span className="text-amber-300">{stats.totalDungeonClears}</span>
-                        </div>
-                        <div className="space-y-2">
-                            {DUNGEONS.map((d) => {
-                                const unlocked = stageIndex >= d.requiredStage;
-                                const runsToday = dungeon.dailyRuns[d.id] ?? 0;
-                                const canEnter =
-                                    unlocked && runsToday < d.maxDailyRuns && activeActivity === null && spirit > 0;
-                                const boss = dungeonBossDrops.find((b) => b.dungeonId === d.id)?.boss ?? null;
-                                return (
-                                    <div
-                                        key={d.id}
-                                        className={`p-3 rounded-lg border ${!unlocked ? "border-slate-700 bg-slate-800/50 opacity-50" : "border-slate-600 bg-slate-800"}`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="font-medium text-slate-200">
-                                                    {d.icon} {d.name}
-                                                </div>
-                                                <div className="text-xs text-slate-500 mt-0.5">{d.description}</div>
-                                                {unlocked ? (
-                                                    <div className="text-xs text-slate-500 mt-1">
-                                                        {d.floors.length}层 | 今日剩余: {d.maxDailyRuns - runsToday}/
-                                                        {d.maxDailyRuns}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-xs text-red-400 mt-1">
-                                                        需要境界: {STAGES[d.requiredStage]?.name ?? d.requiredStage}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {unlocked && (
-                                                <Button
-                                                    variant="primary"
-                                                    size="sm"
-                                                    onClick={() => startDungeon(d.id)}
-                                                    disabled={!canEnter}
-                                                >
-                                                    {runsToday >= d.maxDailyRuns
-                                                        ? "次数用完"
-                                                        : activeActivity !== null
-                                                          ? "有活动进行中"
-                                                          : spirit <= 0
-                                                            ? "灵力不足"
-                                                            : "挑战"}
-                                                </Button>
-                                            )}
-                                        </div>
-                                        {unlocked && (
-                                            <div className="mt-2 flex gap-1">
-                                                {d.floors.map((floor, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-slate-400"
-                                                    >
-                                                        {floor.floor}层
-                                                        {floor.boss && <span className="text-red-400 ml-1">BOSS</span>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {unlocked && boss && boss.drops.length > 0 && (
-                                            <div className="mt-1 flex flex-wrap gap-1">
-                                                <span className="text-xs text-red-400">BOSS:</span>
-                                                {boss.drops.map((drop) => {
-                                                    const dropItem = getItem(drop.itemId);
-                                                    return dropItem ? (
-                                                        <span
-                                                            key={drop.itemId}
-                                                            className="text-xs bg-slate-700/60 px-1.5 py-0.5 rounded text-amber-400"
-                                                        >
-                                                            {dropItem.emoji}
-                                                            {dropItem.name} {(drop.chance * 100).toFixed(0)}%
-                                                        </span>
-                                                    ) : null;
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
